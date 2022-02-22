@@ -6,10 +6,16 @@ var ip = GetSelfIP()
 
 func main() {
 
+
+
 }
 
-func createNewServer(id string, port string) (server *Server) {
+func createNewClient() {
+
+}
+
+func createNewServer(id string, clientPort string, serverPort string) (server *Server) {
 	server = new(Server)
-	go server.Initialise(id, ip, port)
+	server.Initialise(id, ip, clientPort, serverPort)
 	return
 }

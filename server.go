@@ -18,12 +18,6 @@ type Server struct {
 	// (Global) map of all Clients connections
 	Clientsconnections ConnectionMap
 
-	//Encoder
-	//encoder gob.encoder?
-
-	//Decoder
-	//decoder gob.decoder?
-
 	// Mutex.locks
 	mutex *sync.Mutex
 
@@ -31,7 +25,8 @@ type Server struct {
 	IP string
 
 	// Listing port
-	Port string
+	clientPort string
+	serverPort string
 
 	// counter for ID
 	counter int
@@ -107,7 +102,7 @@ func (server *Server) HandleConnection(conn *net.Conn) {
 	}
 }
 
-func (server *Server) Initialise(id string, selfIP string, selfPort string) {
+func (server *Server) Initialise(id string, selfIP string, clientPort string, serverPort string) {
 
 	// Init globals
 	server.myID = id
@@ -116,13 +111,15 @@ func (server *Server) Initialise(id string, selfIP string, selfPort string) {
 	server.Clientsconnections = ConnectionMap{}
 
 	// Log what we're doing
-	fmt.Println("[Startup Arguments] making server at port:" + selfPort)
-	fmt.Printf("[Startup Arguments] Will attempt to connect to %s:%s.\n", server.IP, selfPort)
+	fmt.Println("[Startup Arguments] making server for clients at port:" + clientPort)
+	fmt.Printf("[Startup Arguments] Will attempt to connect to %s:%s.\n", server.IP, clientPort)
 
 	server.mutex.Lock()
 	// Set IP
 	server.myID = selfIP
 	// Set port
-	server.Port = selfPort
+	server.clientPort = clientPort
+	server.serverPort = serverPort
 	server.mutex.Unlock()
+	
 }
