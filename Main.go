@@ -1,12 +1,20 @@
 package main
 
+import (
+	"os"
+)
+
 var portCounter = 22221
 
 var ip = GetSelfIP()
 
 func main() {
 
-
+	if len(os.Arguments) > 1 {
+		// TODO: Parse args
+	} else {
+		// Read state from user, manually
+	}
 
 }
 
