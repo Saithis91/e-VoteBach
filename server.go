@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/gob"
 	"fmt"
-	"log"
 	"net"
 	"sync"
 )
@@ -21,50 +20,43 @@ type Server struct {
 	// Mutex.locks
 	mutex *sync.Mutex
 
-	// Self ip
-	IP string
+	// Name of server (For debugging identification)
+	ID string
 
-	// Listing port
-	clientPort string
-	serverPort string
+	// Self ip
+	SelfIP    string // self IP
+	PartnerIP string // IP of partner address
+
+	// Port vals
+	ListenPort  string // Port to listen for client/voter input
+	PartnerPort string // Port to listen and connect to on partners end
 
 	// counter for ID
 	counter int
 
-	//ID for the thread
-	myID string
+	// The time in seconds to vote
+	VoteTime int
 }
 
-func GetSelfIP() string {
+func (server *Server) InitServerSocket(asClientSocket bool) {
 
-	// Dial Google
-	conn, err := net.Dial("udp", "8.8.8.8:80")
-	if err != nil {
-		log.Fatal(err)
+	// Determine which server socket to create
+	var ip, port string
+	if asClientSocket {
+		ip = server.SelfIP
+		port = server.ListenPort
+	} else {
+		ip = server.SelfIP
+		port = server.PartnerPort
 	}
 
-	// Make sure the runtime will cleanup after us
-	defer conn.Close()
-
-	// Get our connecting address
-	localAddr := conn.LocalAddr().(*net.UDPAddr)
-
-	// Return connecting address str
-	return localAddr.IP.String()
-}
-
-func (server *Server) InitServerSocket(port string) {
-
-	// Set port
-	server.Port = port
-
 	// Begin listening
-	ln, err := net.Listen("tcp", server.IP+":"+port)
+	ln, err := net.Listen("tcp", fmt.Sprintf("%s:%s", ip, port))
 	if err != nil {
 		panic(err)
 	}
 
-	// Close somehow
+	// Close connection
 	defer ln.Close()
 
 	// Log we're listening
@@ -80,12 +72,16 @@ func (server *Server) InitServerSocket(port string) {
 		server.Serverconnections[conn.RemoteAddr().String()] = &conn
 		server.mutex.Unlock()
 		// Handle connection
-		go server.HandleConnection(&conn)
+		if asClientSocket {
+			go server.HandleVoterConnection(&conn)
+		} else {
+			go server.HandleServerPartnerConnect(&conn)
+		}
 
 	}
 }
 
-func (server *Server) HandleConnection(conn *net.Conn) {
+func (server *Server) HandleVoterConnection(conn *net.Conn) {
 
 	decoder := gob.NewDecoder(*conn)
 
@@ -102,24 +98,28 @@ func (server *Server) HandleConnection(conn *net.Conn) {
 	}
 }
 
-func (server *Server) Initialise(id string, selfIP string, clientPort string, serverPort string) {
+func (server *Server) HandleServerPartnerConnect(conn *net.Conn) {
 
-	// Init globals
-	server.myID = id
+}
+
+func (server *Server) Initialise(id, selfIP, partnerIP, listenPort, partnerPort string) {
+
+	// Init vals
 	server.mutex = &sync.Mutex{}
+	server.ID = id
+	server.SelfIP = selfIP
+	server.PartnerIP = partnerIP
 	server.Serverconnections = ConnectionMap{}
 	server.Clientsconnections = ConnectionMap{}
 
 	// Log what we're doing
-	fmt.Println("[Startup Arguments] making server for clients at port:" + clientPort)
-	fmt.Printf("[Startup Arguments] Will attempt to connect to %s:%s.\n", server.IP, clientPort)
+	fmt.Printf("[Server Startup] Making server for vote-clients at port: %s", listenPort)
+	fmt.Printf("[server Startup] Making bi-directional connection to %s:%s.\n", server.SelfIP, partnerPort)
 
 	server.mutex.Lock()
-	// Set IP
-	server.myID = selfIP
 	// Set port
-	server.clientPort = clientPort
-	server.serverPort = serverPort
+	server.ListenPort = listenPort
+	server.PartnerPort = partnerPort
 	server.mutex.Unlock()
-	
+
 }

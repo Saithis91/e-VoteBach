@@ -1,33 +1,24 @@
 package main
 
-func InitSocket(IP string, port string, obj interface{}) {
+import (
+	"log"
+	"net"
+)
 
-	// Set port
-	server.Port = port
+func GetSelfIP() string {
 
-	// Begin listening
-	ln, err := net.Listen("tcp", IP+":"+port)
+	// Dial Google
+	conn, err := net.Dial("udp", "8.8.8.8:80")
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
-	// Close somehow
-	defer ln.Close()
+	// Make sure the runtime will cleanup after us
+	defer conn.Close()
 
-	// Log we're listening
-	fmt.Println("Listening on IP and Port: " + ln.Addr().String())
+	// Get our connecting address
+	localAddr := conn.LocalAddr().(*net.UDPAddr)
 
-	// While running - accept incoming connections
-	for {
-
-		// Accept
-		conn, _ := ln.Accept() // Should do error checking here...
-		obj.mutex.Lock()
-		// Store connection
-		obj.Serverconnections[conn.RemoteAddr().String()] = &conn
-		obj.mutex.Unlock()
-		// Handle connection
-		go obj.HandleConnection(&conn)
-
-	}
+	// Return connecting address str
+	return localAddr.IP.String()
 }
