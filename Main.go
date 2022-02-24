@@ -20,12 +20,12 @@ func main() {
 		flag.StringVar(&mode, "mode", "server", "Specify mode to run with.")
 		flag.StringVar(&id, "id", "Turing", "Specify the ID of the instance.")
 		flag.StringVar(&partnerIP, "pip", ip, "Specify the IP address of the partner server IP address. Default is localhost.")
-		flag.StringVar(&selfPort, "port", "11", "Specify which port to connect to as client or listen to if server.")
+		flag.StringVar(&selfPort, "port", "11000", "Specify which port to connect to as client or listen to if server.")
 		flag.StringVar(&partnerPort, "pport", "11001", "Specify which port the connect and listen to as a server.")
 		flag.IntVar(&testcase, "i", -1, "Specify specific test to run.")
 		flag.IntVar(&vote, "v", 0, "Specify how the client will vote (0/1). Default is false/no (0).")
 		flag.IntVar(&voteperiod, "t", 15, "Specify how long the voting period is in seconds.")
-		flag.IntVar(&p, "p", 991, "Specify the prime number to generate secret (Default is 991).")
+		flag.IntVar(&p, "p", 991, "Specify the prime number to generate secret.")
 		flag.Parse()
 
 		switch mode {
@@ -45,9 +45,6 @@ func main() {
 		case "test":
 			DispatchTestCall(testcase)
 			break
-		case "help":
-			flag.PrintDefaults()
-			return
 		}
 
 	} else {

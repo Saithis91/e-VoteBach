@@ -68,11 +68,11 @@ func (server *Server) InitServerSocket(asClientSocket bool) {
 		// Accept
 		conn, _ := ln.Accept() // Should do error checking here...
 		server.mutex.Lock()
-		
+
 		// Handle connection
 		if asClientSocket {
 			// Store voter connection
-			server.Clientsconnections[conn.RemoteAddr().string] = &conn
+			server.Clientsconnections[conn.RemoteAddr().String()] = &conn
 			go server.HandleVoterConnection(&conn)
 		} else {
 			// Store connection
@@ -87,12 +87,10 @@ func (server *Server) InitServerSocket(asClientSocket bool) {
 func (server *Server) HandleVoterConnection(conn *net.Conn) {
 
 	//Encoder and Decoder
-	encoder := gob.NewEncoder(*conn)
+	//encoder := gob.NewEncoder(*conn)
 	decoder := gob.NewDecoder(*conn)
 
 	//Cleans up after connection finish
-	defer (encoder).Close()
-	defer (decoder).Close()
 	defer (*conn).Close()
 
 	for {
@@ -108,12 +106,10 @@ func (server *Server) HandleVoterConnection(conn *net.Conn) {
 func (server *Server) HandleServerPartnerConnect(conn *net.Conn) {
 
 	//Encoder and Decoder
-	encoder := gob.NewEncoder(*conn)
+	//encoder := gob.NewEncoder(*conn)
 	decoder := gob.NewDecoder(*conn)
 
 	//Cleans up after connection finish
-	defer (encoder).Close()
-	defer (decoder).Close()
 	defer (*conn).Close()
 
 	for {
