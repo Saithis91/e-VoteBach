@@ -11,8 +11,9 @@ type ConnectionMap map[string]*net.Conn
 
 type Server struct {
 
-	// (Global) map of all Server connections
-	Serverconnections ConnectionMap
+	// Connection to the partnerConnection
+	partnerOutgoingConn *net.Conn
+	partnerIncomingConn *net.Conn
 
 	// (Global) map of all Clients connections
 	Clientsconnections ConnectionMap
@@ -32,7 +33,7 @@ type Server struct {
 	PartnerPort string // Port to listen and connect to on partners end
 
 	// counter for ID
-	counter int
+	//counter int
 
 	// The time in seconds to vote
 	VoteTime int
@@ -66,7 +67,11 @@ func (server *Server) InitServerSocket(asClientSocket bool) {
 	for {
 
 		// Accept
-		conn, _ := ln.Accept() // Should do error checking here...
+		conn, err := ln.Accept()
+		if err != nil { // error checking
+			panic(err)
+		}
+
 		server.mutex.Lock()
 
 		// Handle connection
@@ -75,9 +80,8 @@ func (server *Server) InitServerSocket(asClientSocket bool) {
 			server.Clientsconnections[conn.RemoteAddr().String()] = &conn
 			go server.HandleVoterConnection(&conn)
 		} else {
-			// Store connection
-			server.Serverconnections[conn.RemoteAddr().String()] = &conn
-			go server.HandleServerPartnerConnect(&conn)
+			server.partnerIncomingConn = &conn
+			go server.HandleServerPartnerConnect()
 		}
 
 		server.mutex.Unlock()
@@ -103,23 +107,35 @@ func (server *Server) HandleVoterConnection(conn *net.Conn) {
 	}
 }
 
-func (server *Server) HandleServerPartnerConnect(conn *net.Conn) {
+func (server *Server) HandleServerPartnerConnect() {
 
 	//Encoder and Decoder
 	//encoder := gob.NewEncoder(*conn)
-	decoder := gob.NewDecoder(*conn)
+	decoder := gob.NewDecoder(*server.partnerIncomingConn)
 
 	//Cleans up after connection finish
-	defer (*conn).Close()
+	defer (*server.partnerIncomingConn).Close()
 
 	for {
 		var newRequest Request
 		decoder.Decode(&newRequest)
 
 		switch newRequest.RequestType {
+		case SERVERJOIN:
 
 		}
 	}
+}
+
+func (server *Server) ConnectToServer(ip, port string) {
+	// Define address
+	addr := fmt.Sprintf("%s:%s", ip, port)
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		fmt.Printf("Couldn't reach partner server, Waiting for info.")
+		return
+	}
+	server.partnerOutgoingConn = &conn
 }
 
 func (server *Server) Initialise(id, selfIP, partnerIP, listenPort, partnerPort string) {
@@ -129,7 +145,6 @@ func (server *Server) Initialise(id, selfIP, partnerIP, listenPort, partnerPort 
 	server.ID = id
 	server.SelfIP = selfIP
 	server.PartnerIP = partnerIP
-	server.Serverconnections = ConnectionMap{}
 	server.Clientsconnections = ConnectionMap{}
 
 	// Log what we're doing
@@ -140,6 +155,8 @@ func (server *Server) Initialise(id, selfIP, partnerIP, listenPort, partnerPort 
 	// Set port
 	server.ListenPort = listenPort
 	server.PartnerPort = partnerPort
+	go server.InitServerSocket(false)
+	go server.InitServerSocket(true)
 	server.mutex.Unlock()
 
 }
