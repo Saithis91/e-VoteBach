@@ -14,6 +14,13 @@ type Request struct {
 	Data        []byte
 }
 
+// R-Vote Message (Client -> Server)
 type RMessage struct {
 	Vote int
+}
+
+// Result message (Server -> Client)
+type Results struct {
+	Yes int
+	No  int
 }

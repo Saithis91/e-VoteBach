@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/gob"
 	"fmt"
 	"math/rand"
 	"net"
@@ -59,22 +60,71 @@ func ConnectServer(ip, port string) (*net.Conn, error) {
 func (client *Client) SendVote(vote int) {
 
 	// Get R1, R2, R3
-	//r1, r2, r3 := Secrify(vote, client.P)
+	r1, r2 := Secrify(vote, client.P)
 
-	// Send r1, r3 to S1
+	// Grab encoders
+	s1 := gob.NewEncoder(*client.ServerA)
+	s2 := gob.NewEncoder(*client.ServerB)
 
-	// Send r1, r2 to S2
+	// Send r1 to S1
+	s1.Encode(RMessage{Vote: r1})
+
+	// Send r2 to S2
+	s2.Encode(RMessage{Vote: r2})
+
+}
+
+func AwaitResponse(server *net.Conn, ch chan Results) {
+
+	// Create decode
+	s := gob.NewDecoder(*server)
+
+	// Define
+	res := new(Results)
+
+	// Read
+	e := s.Decode(res)
+	if e != nil {
+		return
+	}
+
+	// Write to channel
+	ch <- *res
 
 }
 
 func (client *Client) Shutdown(waitForResults bool) {
 
+	// If wait - we wait for S1 or S2 to return something
+	if waitForResults {
+
+		// Create channel
+		countChan := make(chan Results)
+
+		// Go read
+		go AwaitResponse(client.ServerA, countChan)
+		go AwaitResponse(client.ServerB, countChan)
+
+		// Wait
+		count := <-countChan
+
+		// Log results
+		fmt.Printf("Yes Votes: %v, No Votes: %v (Total %v)", count.Yes, count.No, count.Yes+count.No)
+
+		// Close channel
+		close(countChan)
+
+	}
+
+	// Shutdown
+	(*client.ServerA).Close()
+	(*client.ServerB).Close()
+
 }
 
-func Secrify(x, p int) (r1, r2, r3 int) {
-	r1 = rand.Intn(p - 1) // TODO: Use actual uniform distribution
-	r2 = rand.Intn(p - 1)
-	r3 = (x - r1 - r2) % p
+func Secrify(x, p int) (r1, r2 int) {
+	r1 = rand.Intn(p - 1)
+	r2 = (x - r1) % p
 	return
 }
 
