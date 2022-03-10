@@ -102,7 +102,7 @@ func (server *Server) HandleVoterConnection(conn *net.Conn) {
 		decoder.Decode(&newRequest)
 
 		switch newRequest.RequestType {
-
+		case CLIENTJOIN:
 		}
 	}
 }
@@ -123,6 +123,8 @@ func (server *Server) HandleServerPartnerConnect() {
 		switch newRequest.RequestType {
 		case SERVERJOIN:
 
+		case RNUMBER:
+
 		}
 	}
 }
@@ -135,7 +137,8 @@ func (server *Server) ConnectToServer(ip, port string) {
 		fmt.Printf("Couldn't reach partner server, Waiting for info.")
 		return
 	}
-	server.partnerOutgoingConn = &conn
+	server.partnerIncomingConn = &conn
+	go server.HandleServerPartnerConnect()
 }
 
 func (server *Server) Initialise(id, selfIP, partnerIP, listenPort, partnerPort string) {
