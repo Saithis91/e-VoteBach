@@ -17,9 +17,7 @@ type Request struct {
 
 // R-Vote Message (Client -> Server)
 type RMessage struct {
-	R_1 int
-	R_2 int
-	R_3 int
+	Vote int
 }
 
 type IDMessage struct {

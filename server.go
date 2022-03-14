@@ -155,11 +155,15 @@ func (server *Server) Initialise(id, selfIP, partnerIP, listenPort, partnerPort 
 	fmt.Printf("[server Startup] Making bi-directional connection to %s:%s.\n", server.SelfIP, partnerPort)
 
 	server.mutex.Lock()
+
 	// Set port
 	server.ListenPort = listenPort
 	server.PartnerPort = partnerPort
-	go server.InitServerSocket(false)
-	go server.InitServerSocket(true)
+
+	// Go init server sockets
+	go server.InitServerSocket(false) // listen socket
+	go server.InitServerSocket(true)  // socket to other server
+
 	server.mutex.Unlock()
 
 }
