@@ -87,7 +87,6 @@ func (server *Server) InitServerSocket(asClientSocket bool) {
 		// Handle connection
 		if asClientSocket {
 			// Store voter connection
-			server.Clientsconnections[conn.RemoteAddr().String()] = &conn
 			go server.HandleVoterConnection(&conn)
 		} else {
 			server.partnerIncomingConn = &conn
@@ -100,8 +99,7 @@ func (server *Server) InitServerSocket(asClientSocket bool) {
 
 func (server *Server) HandleVoterConnection(conn *net.Conn) {
 
-	//Encoder and Decoder
-	//encoder := gob.NewEncoder(*conn)
+	//Decoder
 	decoder := gob.NewDecoder(*conn)
 
 	//Cleans up after connection finish
@@ -117,7 +115,13 @@ func (server *Server) HandleVoterConnection(conn *net.Conn) {
 
 			switch newRequest.RequestType {
 			case CLIENTJOIN:
+				server.Clientsconnections[(*conn).RemoteAddr().String()] = conn
+				fmt.Println("Registered new voter")
+				// Would be here where more stuff would be handled like identification, some exchange of keys etc.
 			case RNUMBER:
+				// As r message
+				rm := newRequest.ToRMsg()
+				server.Rs <- rm.Vote
 			}
 		}
 	}
@@ -145,6 +149,8 @@ func (server *Server) HandleServerPartnerConnect() {
 
 		case RNUMBER:
 			// We get r-value from partner, and "terminate"
+			rm := newRequest.ToRMsg()
+			server.DoTally(rm.Vote)
 		}
 	}
 
@@ -185,7 +191,7 @@ func (server *Server) Initialise(id, selfIP, partnerIP, listenPort, partnerPort 
 
 }
 
-func (server *Server) WaitForResults() {
+func (server *Server) WaitForResults() Results {
 
 	// Get results
 	results := <-server.Tally
@@ -198,6 +204,9 @@ func (server *Server) WaitForResults() {
 	// terminate
 	(*server.partnerIncomingConn).Close()
 	(*server.partnerOutgoingConn).Close()
+
+	// Return the results
+	return results
 
 }
 

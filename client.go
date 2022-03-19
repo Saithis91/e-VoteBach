@@ -50,7 +50,8 @@ func ConnectServer(ip, port string) (*net.Conn, error) {
 		return nil, err
 	}
 
-	// TODO: Introduction message?
+	// Send client join
+	gob.NewEncoder(conn).Encode(Request{RequestType: CLIENTJOIN})
 
 	// Return base case -> nil, nil
 	return &conn, nil
@@ -59,7 +60,7 @@ func ConnectServer(ip, port string) (*net.Conn, error) {
 
 func (client *Client) SendVote(vote int) {
 
-	// Get R1, R2, R3
+	// Get R1, R2
 	r1, r2 := Secrify(vote, client.P)
 
 	// Grab encoders
@@ -67,10 +68,10 @@ func (client *Client) SendVote(vote int) {
 	s2 := gob.NewEncoder(*client.ServerB)
 
 	// Send r1 to S1
-	s1.Encode(RMessage{Vote: r1})
+	s1.Encode(RMessage{Vote: r1}.ToRequest())
 
 	// Send r2 to S2
-	s2.Encode(RMessage{Vote: r2})
+	s2.Encode(RMessage{Vote: r2}.ToRequest())
 
 }
 
@@ -80,7 +81,7 @@ func AwaitResponse(server *net.Conn, ch chan Results) {
 	s := gob.NewDecoder(*server)
 
 	// Define
-	res := new(Results)
+	res := new(Request)
 
 	// Read
 	e := s.Decode(res)
@@ -88,8 +89,13 @@ func AwaitResponse(server *net.Conn, ch chan Results) {
 		return
 	}
 
+	// Make sure it's a tally
+	if (*res).RequestType != TALLY {
+		panic(fmt.Errorf("failed to get tally, found %v request", (*res).RequestType))
+	}
+
 	// Write to channel
-	ch <- *res
+	ch <- (*res).ToTallyMsg()
 
 }
 
@@ -127,7 +133,3 @@ func Secrify(x, p int) (r1, r2 int) {
 	r2 = (x - r1) % p
 	return
 }
-
-/*func Verify(r1, r2, r3, x int) bool {
-	return r1+r2+r3 == x
-}*/

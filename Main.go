@@ -25,7 +25,7 @@ func main() {
 		flag.StringVar(&bPort, "port.b", "11001", "Specify which port to use for server B.")
 		flag.StringVar(&aIp, "ip.a", "11001", "Specify which IP to use for server A.")
 		flag.StringVar(&bIp, "ip.b", "11001", "Specify which IP to use for server B.")
-		flag.IntVar(&testcase, "i", -1, "Specify specific test to run.")
+		flag.IntVar(&testcase, "i", -1, "Specify specific test to run. Value <= 0 will run all tests")
 		flag.IntVar(&vote, "v", 0, "Specify how the client will vote (0/1). Default is false/no (0).")
 		flag.IntVar(&voteperiod, "t", 15, "Specify how long the voting period is in seconds.")
 		flag.IntVar(&p, "p", 991, "Specify the prime number to generate secret.")
@@ -34,7 +34,7 @@ func main() {
 
 		switch mode {
 		case "server":
-			server := createNewServer(id, selfPort, partnerPort, partnerIP, voteperiod)
+			server := CreateNewServer(id, selfPort, partnerPort, partnerIP, voteperiod)
 			server.P = p
 			server.WaitForResults()
 		case "client":
@@ -46,7 +46,7 @@ func main() {
 				fmt.Println("Invalid P-value. Must be greater than 3 (and prime).")
 				return
 			}
-			client := createNewClient(id, aIp, aPort, bIp, bPort, p)
+			client := CreateNewClient(id, aIp, aPort, bIp, bPort, p)
 			client.SendVote(vote)
 			client.Shutdown(waitForResults)
 		case "test":
@@ -59,7 +59,7 @@ func main() {
 
 }
 
-func createNewClient(id, serverIPA, serverPortA, serverIPB, serverPortB string, P int) *Client {
+func CreateNewClient(id, serverIPA, serverPortA, serverIPB, serverPortB string, P int) *Client {
 
 	// Create client
 	client := new(Client)
@@ -70,7 +70,7 @@ func createNewClient(id, serverIPA, serverPortA, serverIPB, serverPortB string, 
 
 }
 
-func createNewServer(id, listenPort, parnterPort, partnerIP string, waitTime int) *Server {
+func CreateNewServer(id, listenPort, parnterPort, partnerIP string, waitTime int) *Server {
 	server := new(Server)
 	server.Initialise(id, ip, partnerIP, listenPort, parnterPort, waitTime)
 	return server
