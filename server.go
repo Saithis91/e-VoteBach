@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"sync"
+	"time"
 )
 
 type ConnectionMap map[string]*net.Conn
@@ -32,11 +33,20 @@ type Server struct {
 	ListenPort  string // Port to listen for client/voter input
 	PartnerPort string // Port to listen and connect to on partners end
 
-	// counter for ID
-	//counter int
-
 	// The time in seconds to vote
 	VoteTime int
+
+	// Create channel for tally
+	Tally chan Results
+
+	// R values
+	Rs chan int
+
+	// Self R-value sum
+	SelfRSum int
+
+	// The P value
+	P int
 }
 
 func (server *Server) InitServerSocket(asClientSocket bool) {
@@ -97,12 +107,18 @@ func (server *Server) HandleVoterConnection(conn *net.Conn) {
 	//Cleans up after connection finish
 	defer (*conn).Close()
 
+	// Handle voter/client stuff
 	for {
 		var newRequest Request
-		decoder.Decode(&newRequest)
+		e := decoder.Decode(&newRequest)
+		if e != nil {
+			fmt.Printf("Error: %e", e)
+		} else {
 
-		switch newRequest.RequestType {
-		case CLIENTJOIN:
+			switch newRequest.RequestType {
+			case CLIENTJOIN:
+			case RNUMBER:
+			}
 		}
 	}
 }
@@ -116,6 +132,10 @@ func (server *Server) HandleServerPartnerConnect() {
 	//Cleans up after connection finish
 	defer (*server.partnerIncomingConn).Close()
 
+	// Do wait period
+	go server.waitTime()
+
+	// Handle incoming from partner connection
 	for {
 		var newRequest Request
 		decoder.Decode(&newRequest)
@@ -124,9 +144,10 @@ func (server *Server) HandleServerPartnerConnect() {
 		case SERVERJOIN:
 
 		case RNUMBER:
-
+			// We get r-value from partner, and "terminate"
 		}
 	}
+
 }
 
 func (server *Server) ConnectToServer(ip, port string) {
@@ -141,7 +162,7 @@ func (server *Server) ConnectToServer(ip, port string) {
 	go server.HandleServerPartnerConnect()
 }
 
-func (server *Server) Initialise(id, selfIP, partnerIP, listenPort, partnerPort string) {
+func (server *Server) Initialise(id, selfIP, partnerIP, listenPort, partnerPort string, waitTime int) {
 
 	// Init vals
 	server.mutex = &sync.Mutex{}
@@ -154,8 +175,6 @@ func (server *Server) Initialise(id, selfIP, partnerIP, listenPort, partnerPort 
 	fmt.Printf("[Server Startup] Making server for vote-clients at port: %s", listenPort)
 	fmt.Printf("[server Startup] Making bi-directional connection to %s:%s.\n", server.SelfIP, partnerPort)
 
-	server.mutex.Lock()
-
 	// Set port
 	server.ListenPort = listenPort
 	server.PartnerPort = partnerPort
@@ -164,6 +183,62 @@ func (server *Server) Initialise(id, selfIP, partnerIP, listenPort, partnerPort 
 	go server.InitServerSocket(false) // listen socket
 	go server.InitServerSocket(true)  // socket to other server
 
-	server.mutex.Unlock()
+}
+
+func (server *Server) WaitForResults() {
+
+	// Get results
+	results := <-server.Tally
+
+	// Log
+	fmt.Printf("Tally: %v yes votes, %v no votes, %v total votes.\n", results.Yes, results.No, results.Yes+results.No)
+
+	// TODO: Inform subset of clients
+
+	// terminate
+	(*server.partnerIncomingConn).Close()
+	(*server.partnerOutgoingConn).Close()
+
+}
+
+func (server *Server) waitTime() {
+
+	// Log enter vote period
+	fmt.Printf("Server %v has entered voting period.", server.ID)
+
+	// Do wait
+	time.Sleep(time.Second * time.Duration(server.VoteTime))
+
+	// Log exit vote period
+	fmt.Printf("Server %v has ended voting period. Counting votes...", server.ID)
+
+	// Tally up R-values
+	server.SelfRSum = 0
+	for v := range server.Rs {
+		server.SelfRSum += v
+	}
+
+	// Send new r-value to partner
+	encoder := gob.NewEncoder(*server.partnerOutgoingConn)
+	encoder.Encode(RMessage{Vote: server.SelfRSum})
+
+}
+
+func (server *Server) DoTally(partnerR int) {
+
+	// Get (yes) votes
+	yes_vote := (server.SelfRSum + partnerR) % server.P
+
+	// Get nays
+	no_vote := len(server.Clientsconnections) - yes_vote
+
+	// Log in struct
+	tally := Results{
+		Yes: yes_vote,
+		No:  no_vote,
+	}
+
+	// Enter into channel
+	server.Tally <- tally
 
 }

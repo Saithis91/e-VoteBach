@@ -34,8 +34,9 @@ func main() {
 
 		switch mode {
 		case "server":
-			server := createNewServer(id, selfPort, partnerPort, partnerIP)
-			server.VoteTime = voteperiod
+			server := createNewServer(id, selfPort, partnerPort, partnerIP, voteperiod)
+			server.P = p
+			server.WaitForResults()
 		case "client":
 			if vote < 0 || vote > 1 {
 				fmt.Println("Invalid vote. Must be an integer value of 0 or 1.")
@@ -69,8 +70,8 @@ func createNewClient(id, serverIPA, serverPortA, serverIPB, serverPortB string, 
 
 }
 
-func createNewServer(id, listenPort, parnterPort, partnerIP string) *Server {
+func createNewServer(id, listenPort, parnterPort, partnerIP string, waitTime int) *Server {
 	server := new(Server)
-	server.Initialise(id, ip, partnerIP, listenPort, parnterPort)
+	server.Initialise(id, ip, partnerIP, listenPort, parnterPort, waitTime)
 	return server
 }

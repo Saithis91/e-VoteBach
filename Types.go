@@ -20,6 +20,7 @@ type RMessage struct {
 	Vote int
 }
 
+// ID Message
 type IDMessage struct {
 	ID int
 }
