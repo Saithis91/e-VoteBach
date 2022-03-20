@@ -132,29 +132,26 @@ func (client *Client) SendVote(vote int) {
 
 }
 
-func AwaitResponse(server *net.Conn, ch chan Results) {
+func AwaitResponse(server *net.Conn, dec *gob.Decoder, ch chan Results) {
 
 	defer recover()
 
-	// Create decode
-	s := gob.NewDecoder(*server)
-
 	// Define
-	res := new(Request)
+	var res Request
 
 	// Read
-	e := s.Decode(res)
+	e := dec.Decode(&res)
 	if e != nil {
 		return
 	}
 
 	// Make sure it's a tally
-	if (*res).RequestType != TALLY {
-		panic(fmt.Errorf("failed to get tally, found %v request", (*res).RequestType))
+	if res.RequestType != TALLY {
+		panic(fmt.Errorf("failed to get tally, found %v request", res.RequestType))
 	}
 
 	// Write to channel
-	ch <- (*res).ToTallyMsg()
+	ch <- res.ToTallyMsg()
 
 }
 
@@ -163,21 +160,24 @@ func (client *Client) Shutdown(waitForResults bool) {
 	// If wait - we wait for S1 or S2 to return something
 	if waitForResults {
 
+		// Log results
+		fmt.Printf("[%s] Waiting for results...\n", client.Id)
+
 		// Create channel
-		countChan := make(chan Results)
+		countChan := make(chan Results, 1)
 
 		// Go read
-		go AwaitResponse(client.ServerA, countChan)
-		go AwaitResponse(client.ServerB, countChan)
+		go AwaitResponse(client.ServerA, client.decoderA, countChan)
+		//go AwaitResponse(client.ServerB, client.decoderB, countChan)
 
 		// Wait
 		count := <-countChan
 
 		// Log results
-		fmt.Printf("Yes Votes: %v, No Votes: %v (Total %v).\n", count.Yes, count.No, count.Yes+count.No)
+		fmt.Printf("[%s] Yes Votes: %v, No Votes: %v (Total %v).\n", client.Id, count.Yes, count.No, count.Yes+count.No)
 
 		// Close channel
-		//close(countChan)
+		close(countChan)
 
 	}
 

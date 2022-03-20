@@ -198,19 +198,22 @@ func (server *Server) HandleServerPartnerConnect() {
 			if errors.Is(e, io.EOF) {
 				fmt.Printf("[%s] Connection closed to partner (EOF).\n", server.ID)
 				return
-			} else {
-				//fmt.Printf("[%s] Partner connection error: %e.\n", server.ID, e)
 			}
 		}
 
 		switch newRequest.RequestType {
 		case SERVERJOIN:
 			fmt.Printf("[%s] Connected with partner server.\n", server.ID)
-			go server.waitTime()
+			if server.MainServer {
+				go server.waitTime()
+			}
 		case RNUMBER:
 			// We get r-value from partner, and "terminate"
 			rm := newRequest.ToRMsg()
 			fmt.Printf("[%s] Got a tally number from partner: %v.\n", server.ID, rm.Vote)
+			if !server.MainServer {
+				server.EndVotePeriod()
+			}
 			server.DoTally(rm.Vote)
 		}
 	}
@@ -260,6 +263,7 @@ func (server *Server) Initialise(id, selfIP, partnerIP, listenPort, partnerPort 
 	server.MainServer = mainServer
 
 	// Log what we're doing
+	fmt.Printf("[%s][server Startup] I am main: %v\n", id, mainServer)
 	fmt.Printf("[%s][Server Startup] Making server for vote-clients at port: %s\n", id, listenPort)
 	fmt.Printf("[%s][server Startup] Making connection to %s:%s.\n", id, server.SelfIP, partnerPort)
 
@@ -270,8 +274,6 @@ func (server *Server) Initialise(id, selfIP, partnerIP, listenPort, partnerPort 
 	//Try connect to partner
 	if !server.ConnectToServer(server.PartnerIP, server.PartnerPort) {
 		go server.InitServerSocket()
-	} else {
-		go server.waitTime()
 	}
 
 	// Go init server sockets
@@ -286,13 +288,15 @@ func (server *Server) WaitForResults() Results {
 	resultReq := results.ToRequest()
 
 	// Log
-	fmt.Printf("[%s] Tally: %v yes votes, %v no votes, %v total votes.\n", server.ID, results.Yes, results.No, results.Yes+results.No)
+	fmt.Printf("[%s] Tally: %v yes vote(s), %v no vote(s), %v total vote(s).\n", server.ID, results.Yes, results.No, results.Yes+results.No)
 
 	// Inform connected clients
 	for ip, client := range server.Clientsconnections {
 		e := client.Encoder.Encode(resultReq)
 		if e != nil {
 			fmt.Printf("[%s] Failed to inform client @%s of results.\n", server.ID, ip)
+		} else {
+			fmt.Printf("[%s] I have informed %s of results.\n", server.ID, ip)
 		}
 	}
 
@@ -317,6 +321,13 @@ func (server *Server) waitTime() {
 
 	// Log exit vote period
 	fmt.Printf("[%s] Voting period ended. Counting votes...\n", server.ID)
+
+	// End vote period
+	server.EndVotePeriod()
+
+}
+
+func (server *Server) EndVotePeriod() {
 
 	// We now close the channel
 	close(server.Rs)
