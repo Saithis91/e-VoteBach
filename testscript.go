@@ -13,7 +13,7 @@ var localIP = GetSelfIP()
 func DispatchTestCall(testID int) {
 	if testID <= 0 {
 		i := 1
-		for i <= 1 {
+		for i <= 2 {
 			DispatchTestCall(i)
 		}
 	}

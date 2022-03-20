@@ -12,3 +12,7 @@ test1:
 test2:
 	go build
 	./voting -mode test -i 2
+
+test:
+	go build
+	./voting -mode test
