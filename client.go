@@ -16,6 +16,10 @@ type Client struct {
 	// Server connections
 	ServerA *net.Conn
 	ServerB *net.Conn
+
+	// Encoders
+	EncoderA *gob.Encoder
+	EncoderB *gob.Encoder
 }
 
 func (client *Client) Init(id, serverIA, serverIB, serverPA, serverPB string, P int) {
@@ -25,36 +29,46 @@ func (client *Client) Init(id, serverIA, serverIB, serverPA, serverPB string, P 
 	client.P = P
 
 	// Connect to server A
-	connA, err := ConnectServer(serverIA, serverPA)
+	connA, encA, err := ConnectServer(id, serverIA, serverPA)
 	if err != nil {
 		panic(err) // Cannot complete protocol when one party is not available
 	}
 
 	// Connect to serverB
-	connB, err := ConnectServer(serverIB, serverPB)
+	connB, encB, err := ConnectServer(id, serverIB, serverPB)
 	if err != nil {
 		panic(err) // Cannot complete protocol when one party is not available
 	}
 
-	// Set clients
+	// Set A stuff
 	client.ServerA = connA
+	client.EncoderA = encA
+
+	// Set B stuff
 	client.ServerB = connB
+	client.EncoderB = encB
 
 }
 
-func ConnectServer(ip, port string) (*net.Conn, error) {
+func ConnectServer(id, ip, port string) (*net.Conn, *gob.Encoder, error) {
 
 	// Connect using TCP, over specified address on specified port
 	conn, err := net.Dial("tcp", fmt.Sprintf("%s:%s", ip, port))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
+	// Create encoder
+	enc := gob.NewEncoder(conn)
+
 	// Send client join
-	gob.NewEncoder(conn).Encode(Request{RequestType: CLIENTJOIN})
+	e := enc.Encode(Request{RequestType: CLIENTJOIN})
+	if e != nil {
+		fmt.Printf("[%s] Error when sending join message: %e", id, e)
+	}
 
 	// Return base case -> nil, nil
-	return &conn, nil
+	return &conn, enc, nil
 
 }
 
@@ -63,15 +77,17 @@ func (client *Client) SendVote(vote int) {
 	// Get R1, R2
 	r1, r2 := Secrify(vote, client.P)
 
-	// Grab encoders
-	s1 := gob.NewEncoder(*client.ServerA)
-	s2 := gob.NewEncoder(*client.ServerB)
-
 	// Send r1 to S1
-	s1.Encode(RMessage{Vote: r1}.ToRequest())
+	e := client.EncoderA.Encode(RMessage{Vote: r1}.ToRequest())
+	if e != nil {
+		fmt.Printf("[%s] Error when sending R1: %e", client.Id, e)
+	}
 
 	// Send r2 to S2
-	s2.Encode(RMessage{Vote: r2}.ToRequest())
+	e = client.EncoderB.Encode(RMessage{Vote: r2}.ToRequest())
+	if e != nil {
+		fmt.Printf("[%s] Error when sending R2: %e", client.Id, e)
+	}
 
 }
 

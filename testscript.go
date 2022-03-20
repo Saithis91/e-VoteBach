@@ -49,29 +49,40 @@ func RunTest01() bool {
 	localTestServer.P = 991
 
 	// Spawn server
-	if _, e := TestUtil_SpawnTestProcess("-mode", "server", "-id", "otherServer", "-port", "11101", "-pport", "11100", "-t", "15"); e != nil {
+	if _, e := TestUtil_SpawnTestProcess("-mode", "server", "-id", "otherServer", "-port", "11002", "-pport", "11001", "-t", "15"); e != nil {
 		fmt.Printf("second server failed Error was %v.\n", e)
 		return false
 	}
 
 	// Wait 2s
-	fmt.Printf("TEST 1: Waiting 5s before spawning clients\n")
+	fmt.Println()
+	fmt.Printf("@@@ TEST 1: Waiting 5s before spawning clients\n")
+	fmt.Println()
 	time.Sleep(5 * time.Second)
 
 	// Spawn yay voter
-	if _, e := TestUtil_SpawnTestProcess("-mode", "client", "-id", "yes", "-port.a", "11000", "-port.b", "11101", "-v", "1"); e != nil {
+	if _, e := TestUtil_SpawnTestProcess("-mode", "client", "-id", "yes", "-port.a", "11000", "-port.b", "11002", "-v", "1"); e != nil {
 		fmt.Print("Yey voter failed\n")
 		return false
 	}
 
 	// Spawn nay voter
-	if _, e := TestUtil_SpawnTestProcess("-mode", "client", "-id", "no", "-port.a", "11000", "-port.b", "11101", "-v", "0"); e != nil {
+	if _, e := TestUtil_SpawnTestProcess("-mode", "client", "-id", "no", "-port.a", "11000", "-port.b", "11002", "-v", "0"); e != nil {
 		fmt.Print("Nay voter failed\n")
 		return false
 	}
 
+	// Wait for results
+	fmt.Println()
+	fmt.Printf("@@@ TEST 1: Waiting for results\n")
+	fmt.Println()
+
 	// Wait for local test server
 	res := localTestServer.WaitForResults()
+
+	fmt.Println()
+	fmt.Printf("@@@ TEST 1: Got results:\n\t%v\n", res)
+	fmt.Println()
 
 	// Do asserts
 	return res.No == 1 && res.Yes == 1

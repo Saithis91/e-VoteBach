@@ -2,7 +2,9 @@ package main
 
 import (
 	"encoding/gob"
+	"errors"
 	"fmt"
+	"io"
 	"net"
 	"sync"
 	"time"
@@ -13,7 +15,8 @@ type ConnectionMap map[string]*net.Conn
 type Server struct {
 
 	// Connection to the partnerConnection
-	PartnerConn *net.Conn
+	PartnerConn    *net.Conn
+	PartnerEncoder *gob.Encoder
 
 	// (Global) map of all Clients connections
 	Clientsconnections ConnectionMap
@@ -65,7 +68,7 @@ func (server *Server) InitClientSocket() {
 	defer ln.Close()
 
 	// Log we're listening
-	fmt.Println("Listening on IP and Port: " + ln.Addr().String())
+	fmt.Printf("[%s] Listening on IP and Port: %s\n", server.ID, ln.Addr().String())
 
 	// While running - accept incoming client/voter connections
 	for {
@@ -99,7 +102,7 @@ func (server *Server) InitServerSocket() {
 	defer ln.Close()
 
 	// Log we're listening
-	fmt.Println("Server Listening on IP and Port: " + ln.Addr().String())
+	fmt.Printf("[%s] Listening on IP and Port: %s for other server.\n\n", server.ID, ln.Addr().String())
 
 	// While running - accept incoming partner server connections
 	for {
@@ -112,6 +115,7 @@ func (server *Server) InitServerSocket() {
 
 		// Handle connection
 		server.PartnerConn = &conn
+		server.PartnerEncoder = gob.NewEncoder(conn)
 		go server.HandleServerPartnerConnect()
 
 	}
@@ -130,14 +134,19 @@ func (server *Server) HandleVoterConnection(conn *net.Conn) {
 		var newRequest Request
 		e := decoder.Decode(&newRequest)
 		if e != nil {
-			fmt.Printf("[%s] Error: %e\n", server.ID, e)
+			if errors.Is(e, io.EOF) {
+				fmt.Printf("[%s] Connection closed to a voter (EOF).\n", server.ID)
+				return
+			} else {
+				fmt.Printf("[%s] Voter connection error: %e.\n", server.ID, e)
+			}
 		} else {
 
 			switch newRequest.RequestType {
 			case CLIENTJOIN:
 				server.mutex.Lock()
 				server.Clientsconnections[(*conn).RemoteAddr().String()] = conn
-				fmt.Println("Registered new voter")
+				fmt.Printf("[%s] Registered new voter.\n", server.ID)
 				server.mutex.Unlock()
 				// Would be here where more stuff would be handled like identification, some exchange of keys etc.
 			case RNUMBER:
@@ -152,7 +161,6 @@ func (server *Server) HandleVoterConnection(conn *net.Conn) {
 func (server *Server) HandleServerPartnerConnect() {
 
 	//Encoder and Decoder
-	//encoder := gob.NewEncoder(*conn)
 	decoder := gob.NewDecoder(*server.PartnerConn)
 
 	//Cleans up after connection finish
@@ -160,12 +168,21 @@ func (server *Server) HandleServerPartnerConnect() {
 
 	// Handle incoming from partner connection
 	for {
+
 		var newRequest Request
-		decoder.Decode(&newRequest)
+		e := decoder.Decode(&newRequest)
+		if e != nil {
+			if errors.Is(e, io.EOF) {
+				fmt.Printf("[%s] Connection closed to partner (EOF).\n", server.ID)
+				return
+			} else {
+				fmt.Printf("[%s] Partner connection error: %e.\n", server.ID, e)
+			}
+		}
 
 		switch newRequest.RequestType {
 		case SERVERJOIN:
-			fmt.Println("server connected. YEY")
+			fmt.Printf("[%s] Connected with partner server.\n", server.ID)
 			go server.waitTime()
 		case RNUMBER:
 			// We get r-value from partner, and "terminate"
@@ -179,20 +196,23 @@ func (server *Server) HandleServerPartnerConnect() {
 func (server *Server) ConnectToServer(ip, port string) bool {
 
 	// Define address
-	conn, err := net.Dial("tcp", fmt.Sprintf("%s:%s", ip, port))
+	target := fmt.Sprintf("%s:%s", ip, port)
+	fmt.Printf("[%s] Connecting to : %v \n", server.ID, target)
+	conn, err := net.Dial("tcp", target)
 	if err != nil {
-		fmt.Printf("%s: Couldn't reach partner server... Assuming initial server\n", server.ID)
+		fmt.Printf("[%s] Couldn't reach partner server... Assuming initial server\n", server.ID)
 		return false
 	}
 
 	// Log other server was reached
-	fmt.Printf("%s: Reached the other server. \n", server.ID)
+	fmt.Printf("[%s] Reached the other server. \n", server.ID)
 
 	// Set incoming
 	server.PartnerConn = &conn
+	server.PartnerEncoder = gob.NewEncoder(conn)
 
 	// Send join message
-	e := gob.NewEncoder(conn).Encode(Request{RequestType: SERVERJOIN})
+	e := server.PartnerEncoder.Encode(Request{RequestType: SERVERJOIN})
 	if e != nil {
 		panic(e)
 	}
@@ -216,8 +236,8 @@ func (server *Server) Initialise(id, selfIP, partnerIP, listenPort, partnerPort 
 	server.VoteTime = waitTime
 
 	// Log what we're doing
-	fmt.Printf("[Server Startup] Making server for vote-clients at port: %s\n", listenPort)
-	fmt.Printf("[server Startup] Making connection to %s:%s.\n", server.SelfIP, partnerPort)
+	fmt.Printf("[%s][Server Startup] Making server for vote-clients at port: %s\n", id, listenPort)
+	fmt.Printf("[%s][server Startup] Making connection to %s:%s.\n", id, server.SelfIP, partnerPort)
 
 	// Set port
 	server.ListenPort = listenPort
@@ -241,7 +261,7 @@ func (server *Server) WaitForResults() Results {
 	results := <-server.Tally
 
 	// Log
-	fmt.Printf("Tally: %v yes votes, %v no votes, %v total votes.\n", results.Yes, results.No, results.Yes+results.No)
+	fmt.Printf("[%s] Tally: %v yes votes, %v no votes, %v total votes.\n", server.ID, results.Yes, results.No, results.Yes+results.No)
 
 	// TODO: Inform subset of clients
 
@@ -259,13 +279,13 @@ func (server *Server) waitTime() {
 	wait := time.Second * time.Duration(server.VoteTime)
 
 	// Log enter vote period
-	fmt.Printf("Server %v has entered voting period of %v.\n", server.ID, wait)
+	fmt.Printf("[%s] Entered voting period of %v.\n", server.ID, wait)
 
 	// Do wait
 	time.Sleep(wait)
 
 	// Log exit vote period
-	fmt.Printf("Server %v has ended voting period. Counting votes...\n", server.ID)
+	fmt.Printf("[%s] Voting period ended. Counting votes...\n", server.ID)
 
 	// Tally up R-values
 	server.SelfRSum = 0
@@ -274,8 +294,10 @@ func (server *Server) waitTime() {
 	}
 
 	// Send new r-value to partner
-	encoder := gob.NewEncoder(*server.PartnerConn)
-	encoder.Encode(RMessage{Vote: server.SelfRSum})
+	e := server.PartnerEncoder.Encode(RMessage{Vote: server.SelfRSum})
+	if e != nil {
+		fmt.Printf("[%s] Failed to send accumulated R-value to partner, %e\n", server.ID, e)
+	}
 
 }
 
