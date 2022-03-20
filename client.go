@@ -77,16 +77,19 @@ func (client *Client) SendVote(vote int) {
 	// Get R1, R2
 	r1, r2 := Secrify(vote, client.P)
 
+	// Log
+	fmt.Printf("[%s] My secret is %v, with R1 = %v and R2 = %v\n", client.Id, vote, r1, r2)
+
 	// Send r1 to S1
 	e := client.EncoderA.Encode(RMessage{Vote: r1}.ToRequest())
 	if e != nil {
-		fmt.Printf("[%s] Error when sending R1: %e", client.Id, e)
+		fmt.Printf("[%s] Error when sending R1: %e\n", client.Id, e)
 	}
 
 	// Send r2 to S2
 	e = client.EncoderB.Encode(RMessage{Vote: r2}.ToRequest())
 	if e != nil {
-		fmt.Printf("[%s] Error when sending R2: %e", client.Id, e)
+		fmt.Printf("[%s] Error when sending R2: %e\n", client.Id, e)
 	}
 
 }

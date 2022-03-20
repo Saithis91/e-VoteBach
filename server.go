@@ -153,6 +153,7 @@ func (server *Server) HandleVoterConnection(conn *net.Conn) {
 				// As r message
 				rm := newRequest.ToRMsg()
 				server.Rs <- rm.Vote
+				fmt.Printf("[%s] Got a new vote. R-val = %v\n", server.ID, rm.Vote)
 			}
 		}
 	}
@@ -188,6 +189,7 @@ func (server *Server) HandleServerPartnerConnect() {
 			// We get r-value from partner, and "terminate"
 			rm := newRequest.ToRMsg()
 			server.DoTally(rm.Vote)
+			fmt.Printf("[%s] Got a tally number from partner: %v.\n", server.ID, rm.Vote)
 		}
 	}
 
@@ -203,9 +205,6 @@ func (server *Server) ConnectToServer(ip, port string) bool {
 		fmt.Printf("[%s] Couldn't reach partner server... Assuming initial server\n", server.ID)
 		return false
 	}
-
-	// Log other server was reached
-	fmt.Printf("[%s] Reached the other server. \n", server.ID)
 
 	// Set incoming
 	server.PartnerConn = &conn
@@ -234,6 +233,8 @@ func (server *Server) Initialise(id, selfIP, partnerIP, listenPort, partnerPort 
 	server.PartnerIP = partnerIP
 	server.Clientsconnections = ConnectionMap{}
 	server.VoteTime = waitTime
+	server.Rs = make(chan int, 99999)
+	server.Tally = make(chan Results, 1)
 
 	// Log what we're doing
 	fmt.Printf("[%s][Server Startup] Making server for vote-clients at port: %s\n", id, listenPort)
@@ -266,7 +267,7 @@ func (server *Server) WaitForResults() Results {
 	// TODO: Inform subset of clients
 
 	// terminate
-	(*server.PartnerConn).Close()
+	//(*server.PartnerConn).Close()
 
 	// Return the results
 	return results
@@ -287,14 +288,20 @@ func (server *Server) waitTime() {
 	// Log exit vote period
 	fmt.Printf("[%s] Voting period ended. Counting votes...\n", server.ID)
 
+	// We now close the channel
+	close(server.Rs)
+
 	// Tally up R-values
 	server.SelfRSum = 0
 	for v := range server.Rs {
 		server.SelfRSum += v
 	}
 
+	// Log exit vote period
+	fmt.Printf("[%s] Voting period ended. Got R-value of %v\n", server.ID, server.SelfRSum)
+
 	// Send new r-value to partner
-	e := server.PartnerEncoder.Encode(RMessage{Vote: server.SelfRSum})
+	e := server.PartnerEncoder.Encode(RMessage{Vote: server.SelfRSum}.ToRequest())
 	if e != nil {
 		fmt.Printf("[%s] Failed to send accumulated R-value to partner, %e\n", server.ID, e)
 	}
