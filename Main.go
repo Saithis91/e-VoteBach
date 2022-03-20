@@ -4,6 +4,8 @@ import (
 	"encoding/gob"
 	"flag"
 	"fmt"
+	"math/rand"
+	"time"
 )
 
 var ip = GetSelfIP()
@@ -14,7 +16,7 @@ func main() {
 	gob.Register(Request{})
 
 	var mode, id, partnerIP, selfPort, partnerPort, aPort, bPort, aIp, bIp string
-	var testcase, vote, voteperiod, p int
+	var testcase, vote, voteperiod, p, seed int
 	var waitForResults, mainServer bool
 
 	flag.StringVar(&mode, "mode", "server", "Specify mode to run with.")
@@ -30,9 +32,13 @@ func main() {
 	flag.IntVar(&vote, "v", 0, "Specify how the client will vote (0/1). Default is false/no (0).")
 	flag.IntVar(&voteperiod, "t", 15, "Specify how long the voting period is in seconds.")
 	flag.IntVar(&p, "p", 991, "Specify the prime number to generate secret.")
+	flag.IntVar(&seed, "s", time.Now().Nanosecond(), "Specify the pseudo-random generator seed.")
 	flag.BoolVar(&waitForResults, "w", true, "Specify if client should wait for results before terminating server connection.")
 	flag.BoolVar(&mainServer, "m", false, "Specify if server Should handle the first part of the secret.")
 	flag.Parse()
+
+	// Init rand
+	rand.Seed(int64(seed))
 
 	switch mode {
 	case "server":

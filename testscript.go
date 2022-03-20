@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math/rand"
 	"os"
 	"os/exec"
 	"time"
@@ -35,6 +36,9 @@ func CheckTest(id int, res bool) {
 
 func RunTest01() bool {
 
+	// Init rand
+	rand.Seed(1)
+
 	// Log test
 	fmt.Println("--- Running test 1 ---")
 	fmt.Println()
@@ -49,7 +53,7 @@ func RunTest01() bool {
 	localTestServer.P = 991
 
 	// Spawn server
-	if _, e := TestUtil_SpawnTestProcess("-mode", "server", "-id", "otherServer", "-port", "11002", "-pport", "11001", "-t", "15"); e != nil {
+	if _, e := TestUtil_SpawnTestProcess("-mode", "server", "-id", "otherServer", "-port", "11002", "-pport", "11001", "-t", "15", "-s", "1"); e != nil {
 		fmt.Printf("second server failed Error was %v.\n", e)
 		return false
 	}
@@ -61,13 +65,13 @@ func RunTest01() bool {
 	time.Sleep(5 * time.Second)
 
 	// Spawn yay voter
-	if _, e := TestUtil_SpawnTestProcess("-mode", "client", "-id", "yes", "-port.a", "11000", "-port.b", "11002", "-v", "1"); e != nil {
+	if _, e := TestUtil_SpawnTestProcess("-mode", "client", "-id", "yes", "-port.a", "11000", "-port.b", "11002", "-v", "1", "-s", "1"); e != nil {
 		fmt.Print("Yey voter failed\n")
 		return false
 	}
 
 	// Spawn nay voter
-	if _, e := TestUtil_SpawnTestProcess("-mode", "client", "-id", "no", "-port.a", "11000", "-port.b", "11002", "-v", "0"); e != nil {
+	if _, e := TestUtil_SpawnTestProcess("-mode", "client", "-id", "no", "-port.a", "11000", "-port.b", "11002", "-v", "0", "-s", "1"); e != nil {
 		fmt.Print("Nay voter failed\n")
 		return false
 	}
