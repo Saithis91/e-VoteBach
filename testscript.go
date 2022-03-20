@@ -45,11 +45,11 @@ func RunTest01() bool {
 	fmt.Println()
 
 	// Create test server
-	localTestServer := CreateNewServer("Main Server", "11000", "11001", localIP, 15)
+	localTestServer := CreateNewServer("Main Server", "11000", "11001", localIP, 15, true)
 	localTestServer.P = 991
 
 	// Spawn server
-	if _, e := TestUtil_SpawnTestProcess("-mode", "server", "-id", "otherServer", "-port", "11002", "-pport", "11001", "-t", "15"); e != nil {
+	if _, e := TestUtil_SpawnTestProcess("-mode", "server", "-id", "otherServer", "-port", "11002", "-pport", "11001", "-t", "15", "-m", "false"); e != nil {
 		fmt.Printf("second server failed Error was %v.\n", e)
 		return false
 	}
@@ -83,6 +83,9 @@ func RunTest01() bool {
 	fmt.Println()
 	fmt.Printf("@@@ TEST 1: Got results:\n\t%v\n", res)
 	fmt.Println()
+
+	// Wait 1s before passing/failing
+	time.Sleep(1 * time.Second)
 
 	// Do asserts
 	return res.No == 1 && res.Yes == 1

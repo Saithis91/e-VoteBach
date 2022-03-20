@@ -46,7 +46,7 @@ type IDMessage struct {
 
 // Converts the RMessage into a request
 func (m IDMessage) ToRequest() Request {
-	return Request{RequestType: RNUMBER, Val1: m.ID}
+	return Request{RequestType: ID, Val1: m.ID}
 }
 
 // Result message (Server -> Client)
@@ -57,5 +57,5 @@ type Results struct {
 
 // Converts the RMessage into a request
 func (m Results) ToRequest() Request {
-	return Request{RequestType: RNUMBER, Val1: m.Yes, Val2: m.No}
+	return Request{RequestType: TALLY, Val1: m.Yes, Val2: m.No}
 }

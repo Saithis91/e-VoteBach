@@ -20,6 +20,10 @@ type Client struct {
 	// Encoders
 	EncoderA *gob.Encoder
 	EncoderB *gob.Encoder
+
+	// Decoders
+	decoderA *gob.Decoder
+	decoderB *gob.Decoder
 }
 
 func (client *Client) Init(id, serverIA, serverIB, serverPA, serverPB string, P int) {
@@ -29,37 +33,60 @@ func (client *Client) Init(id, serverIA, serverIB, serverPA, serverPB string, P 
 	client.P = P
 
 	// Connect to server A
-	connA, encA, err := ConnectServer(id, serverIA, serverPA)
+	connA, encA, decA, typeA, err := ConnectServer(id, serverIA, serverPA)
 	if err != nil {
 		panic(err) // Cannot complete protocol when one party is not available
 	}
 
 	// Connect to serverB
-	connB, encB, err := ConnectServer(id, serverIB, serverPB)
+	connB, encB, decB, typeB, err := ConnectServer(id, serverIB, serverPB)
 	if err != nil {
 		panic(err) // Cannot complete protocol when one party is not available
 	}
 
-	// Set A stuff
-	client.ServerA = connA
-	client.EncoderA = encA
+	if typeA == 1 { // Connection A = main
 
-	// Set B stuff
-	client.ServerB = connB
-	client.EncoderB = encB
+		// Set A stuff
+		client.ServerA = connA
+		client.EncoderA = encA
+		client.decoderA = decA
+
+		// Set B stuff
+		client.ServerB = connB
+		client.EncoderB = encB
+		client.decoderB = decB
+
+	} else if typeB == 1 { // Connection B = main
+
+		// Set A stuff
+		client.ServerA = connB
+		client.EncoderA = encB
+		client.decoderA = decB
+
+		// Set B stuff
+		client.ServerB = connA
+		client.EncoderB = encA
+		client.decoderB = decA
+
+	} else {
+
+		panic(fmt.Errorf("neither server was 'main' server"))
+
+	}
 
 }
 
-func ConnectServer(id, ip, port string) (*net.Conn, *gob.Encoder, error) {
+func ConnectServer(id, ip, port string) (*net.Conn, *gob.Encoder, *gob.Decoder, int, error) {
 
 	// Connect using TCP, over specified address on specified port
 	conn, err := net.Dial("tcp", fmt.Sprintf("%s:%s", ip, port))
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, 0, err
 	}
 
 	// Create encoder
 	enc := gob.NewEncoder(conn)
+	dec := gob.NewDecoder(conn)
 
 	// Send client join
 	e := enc.Encode(Request{RequestType: CLIENTJOIN})
@@ -67,8 +94,19 @@ func ConnectServer(id, ip, port string) (*net.Conn, *gob.Encoder, error) {
 		fmt.Printf("[%s] Error when sending join message: %e", id, e)
 	}
 
+	var responseRequest Request
+	e = dec.Decode(&responseRequest)
+	if e != nil {
+		fmt.Printf("[%s] Error when receiving join response: %e", id, e)
+	}
+
+	if responseRequest.RequestType != ID {
+		fmt.Printf("[%s] Failure when receiving join response - invalid response type.", id)
+		return nil, nil, nil, 0, fmt.Errorf("ew")
+	}
+
 	// Return base case -> nil, nil
-	return &conn, enc, nil
+	return &conn, enc, dec, responseRequest.Val1, nil
 
 }
 
@@ -95,6 +133,8 @@ func (client *Client) SendVote(vote int) {
 }
 
 func AwaitResponse(server *net.Conn, ch chan Results) {
+
+	defer recover()
 
 	// Create decode
 	s := gob.NewDecoder(*server)
@@ -134,10 +174,10 @@ func (client *Client) Shutdown(waitForResults bool) {
 		count := <-countChan
 
 		// Log results
-		fmt.Printf("Yes Votes: %v, No Votes: %v (Total %v)", count.Yes, count.No, count.Yes+count.No)
+		fmt.Printf("Yes Votes: %v, No Votes: %v (Total %v).\n", count.Yes, count.No, count.Yes+count.No)
 
 		// Close channel
-		close(countChan)
+		//close(countChan)
 
 	}
 

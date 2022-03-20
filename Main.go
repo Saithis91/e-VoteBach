@@ -15,7 +15,7 @@ func main() {
 
 	var mode, id, partnerIP, selfPort, partnerPort, aPort, bPort, aIp, bIp string
 	var testcase, vote, voteperiod, p int
-	var waitForResults bool
+	var waitForResults, mainServer bool
 
 	flag.StringVar(&mode, "mode", "server", "Specify mode to run with.")
 	flag.StringVar(&id, "id", "Turing", "Specify the ID of the instance.")
@@ -31,11 +31,12 @@ func main() {
 	flag.IntVar(&voteperiod, "t", 15, "Specify how long the voting period is in seconds.")
 	flag.IntVar(&p, "p", 991, "Specify the prime number to generate secret.")
 	flag.BoolVar(&waitForResults, "w", true, "Specify if client should wait for results before terminating server connection.")
+	flag.BoolVar(&mainServer, "m", false, "Specify if server Should handle the first part of the secret.")
 	flag.Parse()
 
 	switch mode {
 	case "server":
-		server := CreateNewServer(id, selfPort, partnerPort, partnerIP, voteperiod)
+		server := CreateNewServer(id, selfPort, partnerPort, partnerIP, voteperiod, mainServer)
 		server.P = p
 		server.WaitForResults()
 	case "client":
@@ -68,8 +69,8 @@ func CreateNewClient(id, serverIPA, serverPortA, serverIPB, serverPortB string, 
 
 }
 
-func CreateNewServer(id, listenPort, parnterPort, partnerIP string, waitTime int) *Server {
+func CreateNewServer(id, listenPort, parnterPort, partnerIP string, waitTime int, mainServer bool) *Server {
 	server := new(Server)
-	server.Initialise(id, ip, partnerIP, listenPort, parnterPort, waitTime)
+	server.Initialise(id, ip, partnerIP, listenPort, parnterPort, waitTime, mainServer)
 	return server
 }

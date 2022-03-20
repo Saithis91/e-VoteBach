@@ -10,8 +10,20 @@ import (
 	"time"
 )
 
-type ConnectionMap map[string]*net.Conn
+// Struct for a voter instance
+type Voter struct {
 
+	// Connection to voter
+	Connection *net.Conn
+
+	// Gob encoder and deocer
+	Encoder *gob.Encoder
+	Decoder *gob.Decoder
+}
+
+type ConnectionMap map[string]Voter
+
+// Struct for server instance
 type Server struct {
 
 	// Connection to the partnerConnection
@@ -49,6 +61,9 @@ type Server struct {
 
 	// The P value
 	P int
+
+	// Flag marking if server is main (Handles R1 values)
+	MainServer bool
 }
 
 func (server *Server) InitClientSocket() {
@@ -123,7 +138,6 @@ func (server *Server) InitServerSocket() {
 
 func (server *Server) HandleVoterConnection(conn *net.Conn) {
 
-	//Decoder
 	decoder := gob.NewDecoder(*conn)
 
 	//Cleans up after connection finish
@@ -137,23 +151,31 @@ func (server *Server) HandleVoterConnection(conn *net.Conn) {
 			if errors.Is(e, io.EOF) {
 				fmt.Printf("[%s] Connection closed to a voter (EOF).\n", server.ID)
 				return
-			} else {
-				fmt.Printf("[%s] Voter connection error: %e.\n", server.ID, e)
 			}
 		} else {
 
 			switch newRequest.RequestType {
 			case CLIENTJOIN:
 				server.mutex.Lock()
-				server.Clientsconnections[(*conn).RemoteAddr().String()] = conn
+				voter := Voter{
+					Connection: conn,
+					Encoder:    gob.NewEncoder(*conn),
+					Decoder:    decoder,
+				}
+				server.Clientsconnections[(*conn).RemoteAddr().String()] = voter
 				fmt.Printf("[%s] Registered new voter.\n", server.ID)
+				if server.MainServer {
+					voter.Encoder.Encode(Request{RequestType: ID, Val1: 1})
+				} else {
+					voter.Encoder.Encode(Request{RequestType: ID, Val1: 2})
+				}
 				server.mutex.Unlock()
 				// Would be here where more stuff would be handled like identification, some exchange of keys etc.
 			case RNUMBER:
 				// As r message
 				rm := newRequest.ToRMsg()
 				server.Rs <- rm.Vote
-				fmt.Printf("[%s] Got a new vote. R-val = %v\n", server.ID, rm.Vote)
+				//fmt.Printf("[%s] Got a new vote. R-val = %v\n", server.ID, rm.Vote)
 			}
 		}
 	}
@@ -177,7 +199,7 @@ func (server *Server) HandleServerPartnerConnect() {
 				fmt.Printf("[%s] Connection closed to partner (EOF).\n", server.ID)
 				return
 			} else {
-				fmt.Printf("[%s] Partner connection error: %e.\n", server.ID, e)
+				//fmt.Printf("[%s] Partner connection error: %e.\n", server.ID, e)
 			}
 		}
 
@@ -188,8 +210,8 @@ func (server *Server) HandleServerPartnerConnect() {
 		case RNUMBER:
 			// We get r-value from partner, and "terminate"
 			rm := newRequest.ToRMsg()
-			server.DoTally(rm.Vote)
 			fmt.Printf("[%s] Got a tally number from partner: %v.\n", server.ID, rm.Vote)
+			server.DoTally(rm.Vote)
 		}
 	}
 
@@ -224,7 +246,7 @@ func (server *Server) ConnectToServer(ip, port string) bool {
 
 }
 
-func (server *Server) Initialise(id, selfIP, partnerIP, listenPort, partnerPort string, waitTime int) {
+func (server *Server) Initialise(id, selfIP, partnerIP, listenPort, partnerPort string, waitTime int, mainServer bool) {
 
 	// Init vals
 	server.mutex = &sync.Mutex{}
@@ -235,6 +257,7 @@ func (server *Server) Initialise(id, selfIP, partnerIP, listenPort, partnerPort 
 	server.VoteTime = waitTime
 	server.Rs = make(chan int, 99999)
 	server.Tally = make(chan Results, 1)
+	server.MainServer = mainServer
 
 	// Log what we're doing
 	fmt.Printf("[%s][Server Startup] Making server for vote-clients at port: %s\n", id, listenPort)
@@ -260,14 +283,21 @@ func (server *Server) WaitForResults() Results {
 
 	// Get results
 	results := <-server.Tally
+	resultReq := results.ToRequest()
 
 	// Log
 	fmt.Printf("[%s] Tally: %v yes votes, %v no votes, %v total votes.\n", server.ID, results.Yes, results.No, results.Yes+results.No)
 
-	// TODO: Inform subset of clients
+	// Inform connected clients
+	for ip, client := range server.Clientsconnections {
+		e := client.Encoder.Encode(resultReq)
+		if e != nil {
+			fmt.Printf("[%s] Failed to inform client @%s of results.\n", server.ID, ip)
+		}
+	}
 
 	// terminate
-	//(*server.PartnerConn).Close()
+	(*server.PartnerConn).Close()
 
 	// Return the results
 	return results
