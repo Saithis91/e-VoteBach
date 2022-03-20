@@ -20,7 +20,8 @@ func DispatchTestCall(testID int) {
 	switch testID {
 	case 1:
 		CheckTest(testID, RunTest01())
-
+	case 2:
+		CheckTest(testID, RunTest02())
 	default:
 		fmt.Printf("Unknown test '%v'.\n", testID)
 	}
@@ -93,6 +94,80 @@ func RunTest01() bool {
 
 	// Do asserts
 	return res.No == 1 && res.Yes == 1
+
+}
+
+func RunTest02() bool {
+
+	// Init rand
+	rand.Seed(1)
+
+	// Log test
+	fmt.Println("--- Running test 1 ---")
+	fmt.Println()
+
+	// Log what we're testing
+	fmt.Println("Starting test-server - vote period is 15 seconds.")
+	fmt.Println("There will be 4 votes. 3 Yes vote and 1 No vote.")
+	fmt.Println()
+
+	// Create test server
+	localTestServer := CreateNewServer("Main Server", "11000", "11001", localIP, 15, true)
+	localTestServer.P = 991
+
+	// Spawn server
+	if _, e := TestUtil_SpawnTestProcess("-mode", "server", "-id", "otherServer", "-port", "11002", "-pport", "11001", "-t", "15", "-s", "1"); e != nil {
+		fmt.Printf("second server failed Error was %v.\n", e)
+		return false
+	}
+
+	// Wait 2s
+	fmt.Println()
+	fmt.Printf("@@@ TEST 1: Waiting 5s before spawning clients\n")
+	fmt.Println()
+	time.Sleep(5 * time.Second)
+
+	// Spawn yay voter
+	if _, e := TestUtil_SpawnTestProcess("-mode", "client", "-id", "yes1", "-port.a", "11000", "-port.b", "11002", "-v", "1", "-s", "1"); e != nil {
+		fmt.Print("Yey voter failed\n")
+		return false
+	}
+
+	// Spawn yay voter
+	if _, e := TestUtil_SpawnTestProcess("-mode", "client", "-id", "yes2", "-port.a", "11000", "-port.b", "11002", "-v", "1", "-s", "1"); e != nil {
+		fmt.Print("Yey voter failed\n")
+		return false
+	}
+
+	// Spawn yay voter
+	if _, e := TestUtil_SpawnTestProcess("-mode", "client", "-id", "yes3", "-port.a", "11000", "-port.b", "11002", "-v", "1", "-s", "1"); e != nil {
+		fmt.Print("Yey voter failed\n")
+		return false
+	}
+
+	// Spawn nay voter
+	if _, e := TestUtil_SpawnTestProcess("-mode", "client", "-id", "no", "-port.a", "11000", "-port.b", "11002", "-v", "0", "-s", "1"); e != nil {
+		fmt.Print("Nay voter failed\n")
+		return false
+	}
+
+	// Wait for results
+	fmt.Println()
+	fmt.Printf("@@@ TEST 1: Waiting for results\n")
+	fmt.Println()
+
+	// Wait for local test server
+	res := localTestServer.WaitForResults()
+
+	fmt.Println()
+	fmt.Printf("@@@ TEST 1: Got results:\n\t%+v\n", res)
+	fmt.Println()
+
+	// Wait 1s before passing/failing
+	time.Sleep(1 * time.Second)
+
+	// Do asserts
+	return res.No == 1 && res.Yes == 3
 
 }
 

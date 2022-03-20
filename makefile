@@ -8,3 +8,7 @@ run:
 test1:
 	go build
 	./voting -mode test -i 1
+
+test2:
+	go build
+	./voting -mode test -i 2
