@@ -2,9 +2,12 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"time"
 )
+
+var localIP = GetSelfIP()
 
 func DispatchTestCall(testID int) {
 	if testID <= 0 {
@@ -15,7 +18,8 @@ func DispatchTestCall(testID int) {
 	}
 	switch testID {
 	case 1:
-		RunTest01()
+		CheckTest(testID, RunTest01())
+
 	default:
 		fmt.Printf("Unknown test '%v'.\n", testID)
 	}
@@ -23,9 +27,9 @@ func DispatchTestCall(testID int) {
 
 func CheckTest(id int, res bool) {
 	if res {
-		fmt.Printf("--- TEST %v PASS ---", id)
+		fmt.Printf("--- TEST %v PASS ---\n", id)
 	} else {
-		fmt.Printf("--- TEST %v FAIL ---", id)
+		fmt.Printf("--- TEST %v FAIL ---\n", id)
 	}
 }
 
@@ -41,24 +45,28 @@ func RunTest01() bool {
 	fmt.Println()
 
 	// Create test server
-	localTestServer := CreateNewServer("Main Server", "11000", "11001", "127.0.0.1", 15)
+	localTestServer := CreateNewServer("Main Server", "11000", "11001", localIP, 15)
 	localTestServer.P = 991
 
 	// Spawn server
-	if _, e := TestUtil_SpawnTestProcess("-mode server -id otherServer -port 11001 -pport 11000 -t 15"); e != nil {
+	if _, e := TestUtil_SpawnTestProcess("-mode", "server", "-id", "otherServer", "-port", "11101", "-pport", "11100", "-t", "15"); e != nil {
+		fmt.Printf("second server failed Error was %v.\n", e)
 		return false
 	}
 
 	// Wait 2s
-	time.Sleep(2 * time.Second)
+	fmt.Printf("TEST 1: Waiting 5s before spawning clients\n")
+	time.Sleep(5 * time.Second)
 
 	// Spawn yay voter
-	if _, e := TestUtil_SpawnTestProcess("-mode client -id yes -port.a 11000 -port.b 11001 -ip.a 127.0.0.1 -ip.b 127.0.0.1 -v 1"); e != nil {
+	if _, e := TestUtil_SpawnTestProcess("-mode", "client", "-id", "yes", "-port.a", "11000", "-port.b", "11101", "-v", "1"); e != nil {
+		fmt.Print("Yey voter failed\n")
 		return false
 	}
 
 	// Spawn nay voter
-	if _, e := TestUtil_SpawnTestProcess("-mode client -id yes -port.a 11000 -port.b 11001 -ip.a 127.0.0.1 -ip.b 127.0.0.1 -v 0"); e != nil {
+	if _, e := TestUtil_SpawnTestProcess("-mode", "client", "-id", "no", "-port.a", "11000", "-port.b", "11101", "-v", "0"); e != nil {
+		fmt.Print("Nay voter failed\n")
 		return false
 	}
 
@@ -70,7 +78,11 @@ func RunTest01() bool {
 
 }
 
-func TestUtil_SpawnTestProcess(args string) (*exec.Cmd, error) {
-	proc := exec.Command("./voting", args)
-	return proc, proc.Run()
+func TestUtil_SpawnTestProcess(args ...string) (*exec.Cmd, error) {
+	fmt.Printf("[TestUtil] Spawning vote instance with args: %v\n", args)
+	proc := exec.Command("./voting", args...)
+	proc.Stdout = os.Stdout
+	proc.Stderr = os.Stderr
+	e := proc.Start()
+	return proc, e
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/gob"
 	"flag"
 	"fmt"
 	"os"
@@ -9,6 +10,10 @@ import (
 var ip = GetSelfIP()
 
 func main() {
+	// Inform gob of magic type :D
+	Request{}
+
+	// Enside arg count	gob.Register()
 
 	if len(os.Args) > 1 {
 
@@ -23,8 +28,8 @@ func main() {
 		flag.StringVar(&partnerPort, "pport", "11001", "Specify which port the connect and listen to as a server.")
 		flag.StringVar(&aPort, "port.a", "11000", "Specify which port to use for server A.")
 		flag.StringVar(&bPort, "port.b", "11001", "Specify which port to use for server B.")
-		flag.StringVar(&aIp, "ip.a", "11001", "Specify which IP to use for server A.")
-		flag.StringVar(&bIp, "ip.b", "11001", "Specify which IP to use for server B.")
+		flag.StringVar(&aIp, "ip.a", ip, "Specify which IP to use for server A.")
+		flag.StringVar(&bIp, "ip.b", ip, "Specify which IP to use for server B.")
 		flag.IntVar(&testcase, "i", -1, "Specify specific test to run. Value <= 0 will run all tests")
 		flag.IntVar(&vote, "v", 0, "Specify how the client will vote (0/1). Default is false/no (0).")
 		flag.IntVar(&voteperiod, "t", 15, "Specify how long the voting period is in seconds.")
@@ -51,12 +56,9 @@ func main() {
 			client.Shutdown(waitForResults)
 		case "test":
 			DispatchTestCall(testcase)
+
 		}
-
-	} else {
-		// Read state from user, manually
 	}
-
 }
 
 func CreateNewClient(id, serverIPA, serverPortA, serverIPB, serverPortB string, P int) *Client {
