@@ -29,7 +29,7 @@ func main() {
 	flag.StringVar(&aIp, "ip.a", ip, "Specify which IP to use for server A.")
 	flag.StringVar(&bIp, "ip.b", ip, "Specify which IP to use for server B.")
 	flag.IntVar(&testcase, "i", -1, "Specify specific test to run. Value <= 0 will run all tests")
-	flag.IntVar(&vote, "v", 0, "Specify how the client will vote (0/1). Default is false/no (0).")
+	flag.IntVar(&vote, "v", rand.Intn(1-0)+0, "Specify how the client will vote (0/1). Default is false/no (0).")
 	flag.IntVar(&voteperiod, "t", 15, "Specify how long the voting period is in seconds.")
 	flag.IntVar(&p, "p", 991, "Specify the prime number to generate secret.")
 	flag.IntVar(&seed, "s", time.Now().Nanosecond(), "Specify the pseudo-random generator seed.")

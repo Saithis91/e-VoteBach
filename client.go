@@ -189,6 +189,13 @@ func (client *Client) Shutdown(waitForResults bool) {
 
 func Secrify(x, p int) (r1, r2 int) {
 	r1 = rand.Intn(p - 1)
-	r2 = (x - r1) % p
+	r2 = Mod(x-r1, p)
 	return
+}
+
+// Apparently Go has a botched modulo operator implementation
+// Which can yield negative numbers.
+// Code from https://www.reddit.com/r/golang/comments/bnvik4/modulo_in_golang/
+func Mod(a int, b int) int {
+	return (a + b) % b
 }
