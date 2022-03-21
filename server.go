@@ -16,12 +16,15 @@ type Voter struct {
 	// Connection to voter
 	Connection *net.Conn
 
+	// The secret share
+	RVal int
+
 	// Gob encoder and deocer
 	Encoder *gob.Encoder
 	Decoder *gob.Decoder
 }
 
-type ConnectionMap map[string]Voter
+type ConnectionMap map[string]*Voter
 
 // Struct for server instance
 type Server struct {
@@ -52,9 +55,6 @@ type Server struct {
 
 	// Create channel for tally
 	Tally chan Results
-
-	// R values
-	Rs chan int
 
 	// Self R-value sum
 	SelfRSum int
@@ -153,17 +153,18 @@ func (server *Server) HandleVoterConnection(conn *net.Conn) {
 	//Cleans up after connection finish
 	defer (*conn).Close()
 
+	// Grab key
+	voterAddr := (*conn).RemoteAddr().String()
+
 	// Handle voter/client stuff
 	for {
 		var newRequest Request
 		e := decoder.Decode(&newRequest)
 		if e != nil {
 			if errors.Is(e, io.EOF) {
-				fmt.Printf("[%s] Connection closed to a voter (EOF).\n", server.ID)
 				return
 			}
 		} else {
-
 			switch newRequest.RequestType {
 			case CLIENTJOIN:
 				server.mutex.Lock()
@@ -172,7 +173,7 @@ func (server *Server) HandleVoterConnection(conn *net.Conn) {
 					Encoder:    gob.NewEncoder(*conn),
 					Decoder:    decoder,
 				}
-				server.Clientsconnections[(*conn).RemoteAddr().String()] = voter
+				server.Clientsconnections[voterAddr] = &voter
 				fmt.Printf("[%s] Registered new voter.\n", server.ID)
 				if server.MainServer {
 					voter.Encoder.Encode(Request{RequestType: ID, Val1: 1})
@@ -184,8 +185,13 @@ func (server *Server) HandleVoterConnection(conn *net.Conn) {
 			case RNUMBER:
 				// As r message
 				rm := newRequest.ToRMsg()
-				server.Rs <- rm.Vote
-				//fmt.Printf("[%s] Got a new vote. R-val = %v\n", server.ID, rm.Vote)
+				server.mutex.Lock()
+				if voter, exists := server.Clientsconnections[voterAddr]; exists {
+					voter.RVal = rm.Vote
+				} else {
+					fmt.Printf("[%s] Unregistered voter attempted to vote!\n", server.ID)
+				}
+				server.mutex.Unlock()
 			}
 		}
 	}
@@ -268,7 +274,6 @@ func (server *Server) Initialise(id, selfIP, partnerIP, listenPort, partnerPort 
 	server.PartnerIP = partnerIP
 	server.Clientsconnections = ConnectionMap{}
 	server.VoteTime = waitTime
-	server.Rs = make(chan int, 99999)
 	server.Tally = make(chan Results, 1)
 	server.MainServer = mainServer
 
@@ -305,8 +310,6 @@ func (server *Server) WaitForResults() Results {
 		e := client.Encoder.Encode(resultReq)
 		if e != nil {
 			fmt.Printf("[%s] Failed to inform client @%s of results.\n", server.ID, ip)
-		} else {
-			fmt.Printf("[%s] I have informed %s of results.\n", server.ID, ip)
 		}
 	}
 
@@ -339,13 +342,10 @@ func (server *Server) waitTime() {
 
 func (server *Server) EndVotePeriod() {
 
-	// We now close the channel
-	close(server.Rs)
-
 	// Tally up R-values
 	server.SelfRSum = 0
-	for v := range server.Rs {
-		server.SelfRSum += v
+	for _, v := range server.Clientsconnections {
+		server.SelfRSum += v.RVal
 	}
 
 	// Log exit vote period

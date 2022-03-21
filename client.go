@@ -134,8 +134,6 @@ func (client *Client) SendVote(vote int) {
 
 func AwaitResponse(server *net.Conn, dec *gob.Decoder, ch chan Results) {
 
-	defer recover()
-
 	// Define
 	var res Request
 
@@ -160,21 +158,23 @@ func (client *Client) Shutdown(waitForResults bool) {
 	// If wait - we wait for S1 or S2 to return something
 	if waitForResults {
 
-		// Log results
-		fmt.Printf("[%s] Waiting for results...\n", client.Id)
-
 		// Create channel
-		countChan := make(chan Results, 1)
+		countChan := make(chan Results, 2)
 
 		// Go read
 		go AwaitResponse(client.ServerA, client.decoderA, countChan)
-		//go AwaitResponse(client.ServerB, client.decoderB, countChan)
+		go AwaitResponse(client.ServerB, client.decoderB, countChan)
 
-		// Wait
-		count := <-countChan
+		// Wait for both to come in (We don't know in which order)
+		countA := <-countChan
+		countB := <-countChan
 
-		// Log results
-		fmt.Printf("[%s] Yes Votes: %v, No Votes: %v (Total %v).\n", client.Id, count.Yes, count.No, count.Yes+count.No)
+		// If agreement, print; otherwise inform of mismatching results.
+		if countA.Yes == countB.Yes && countA.No == countB.No {
+			fmt.Printf("[%s] Yes Votes: %v, No Votes: %v (Total %v).\n", client.Id, countA.Yes, countA.No, countA.Yes+countA.No)
+		} else {
+			fmt.Printf("[%s] Received two results that do no agree!\n\tServer A = %+v\n\tServer B = %+v\n", client.Id, countA, countB)
+		}
 
 		// Close channel
 		close(countChan)

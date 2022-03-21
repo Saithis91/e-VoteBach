@@ -1,5 +1,6 @@
 package main
 
+// Enum values defining request types
 const (
 	NOTAFUCKINGREQUEST = iota
 	JOINNETWORK
@@ -8,6 +9,8 @@ const (
 	RNUMBER
 	ID
 	TALLY
+	CLIENTLIST
+	INTERSECTION
 )
 
 // Define actual request type
@@ -15,6 +18,7 @@ type Request struct {
 	RequestType int
 	Val1        int
 	Val2        int
+	Strs        []string
 }
 
 func (r Request) ToRMsg() RMessage {
