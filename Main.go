@@ -33,7 +33,7 @@ func main() {
 	flag.IntVar(&voteperiod, "t", 15, "Specify how long the voting period is in seconds.")
 	flag.IntVar(&p, "p", 991, "Specify the prime number to generate secret.")
 	flag.IntVar(&seed, "s", time.Now().Nanosecond(), "Specify the pseudo-random generator seed.")
-	flag.BoolVar(&waitForResults, "w", true, "Specify if client should wait for results before terminating server connection.")
+	flag.BoolVar(&waitForResults, "w", true, "Specify if client should *NOT* wait for results before terminating server connection.")
 	flag.BoolVar(&mainServer, "m", false, "Specify if server Should handle the first part of the secret.")
 	flag.Parse()
 
@@ -59,7 +59,6 @@ func main() {
 		client.Shutdown(waitForResults)
 	case "test":
 		DispatchTestCall(testcase)
-
 	}
 
 }

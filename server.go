@@ -64,6 +64,9 @@ type Server struct {
 
 	// Flag marking if server is main (Handles R1 values)
 	MainServer bool
+
+	ClientListener *net.Listener
+	ServerListener *net.Listener
 }
 
 func (server *Server) InitClientSocket() {
@@ -79,8 +82,11 @@ func (server *Server) InitClientSocket() {
 		panic(err)
 	}
 
+	// Set listener
+	server.ClientListener = &ln
+
 	// Close connection
-	defer ln.Close()
+	defer (*server.ClientListener).Close()
 
 	// Log we're listening
 	fmt.Printf("[%s] Listening on IP and Port: %s\n", server.ID, ln.Addr().String())
@@ -91,13 +97,14 @@ func (server *Server) InitClientSocket() {
 		// Accept
 		conn, err := ln.Accept()
 		if err != nil { // error checking
-			panic(err)
+			return
 		}
 
 		// Handle connection
 		go server.HandleVoterConnection(&conn)
 
 	}
+
 }
 
 func (server *Server) InitServerSocket() {
@@ -113,8 +120,11 @@ func (server *Server) InitServerSocket() {
 		panic(err)
 	}
 
+	// Save listener
+	server.ServerListener = &ln
+
 	// Close connection
-	defer ln.Close()
+	defer (*server.ServerListener).Close()
 
 	// Log we're listening
 	fmt.Printf("[%s] Listening on IP and Port: %s for other server.\n\n", server.ID, ln.Addr().String())
@@ -125,7 +135,7 @@ func (server *Server) InitServerSocket() {
 		// Accept
 		conn, err := ln.Accept()
 		if err != nil { // error checking
-			panic(err)
+			return
 		}
 
 		// Handle connection
@@ -365,5 +375,13 @@ func (server *Server) DoTally(partnerR int) {
 
 	// Enter into channel
 	server.Tally <- tally
+
+}
+
+func (server *Server) Halt() {
+
+	// Close both listeners
+	(*server.ClientListener).Close()
+	(*server.ServerListener).Close()
 
 }
