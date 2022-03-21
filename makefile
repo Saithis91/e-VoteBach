@@ -21,6 +21,10 @@ test4:
 	go build
 	./voting -mode test -i 4
 
-test:
+test t:
+	go build
+	./voting -mode test -i $(t)
+
+testall:
 	go build
 	./voting -mode test
