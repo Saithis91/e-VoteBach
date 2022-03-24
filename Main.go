@@ -17,7 +17,7 @@ func main() {
 
 	var mode, id, partnerIP, selfPort, partnerPort, aPort, bPort, aIp, bIp string
 	var testcase, vote, voteperiod, p, seed int
-	var waitForResults, mainServer bool
+	var waitForResults, mainServer, badvariant bool
 
 	flag.StringVar(&mode, "mode", "server", "Specify mode to run with.")
 	flag.StringVar(&id, "id", "Turing", "Specify the ID of the instance.")
@@ -35,6 +35,7 @@ func main() {
 	flag.IntVar(&seed, "s", time.Now().Nanosecond(), "Specify the pseudo-random generator seed.")
 	flag.BoolVar(&waitForResults, "w", true, "Specify if client should *NOT* wait for results before terminating server connection.")
 	flag.BoolVar(&mainServer, "m", false, "Specify if server Should handle the first part of the secret.")
+	flag.BoolVar(&badvariant, "b", false, "Specify if server/client Should behave badly (ignore protocol, crash, etc.).")
 	flag.Parse()
 
 	// Init rand
@@ -54,23 +55,27 @@ func main() {
 			fmt.Println("Invalid P-value. Must be greater than 3 (and prime).")
 			return
 		}
-		client := CreateNewClient(id, aIp, aPort, bIp, bPort, p)
-		client.SendVote(vote)
-		client.Shutdown(waitForResults)
+		client := CreateNewClient(id, aIp, aPort, bIp, bPort, p, badvariant)
+		if client != nil {
+			client.SendVote(vote)
+			client.Shutdown(waitForResults)
+		}
 	case "test":
 		DispatchTestCall(testcase)
 	}
 
 }
 
-func CreateNewClient(id, serverIPA, serverPortA, serverIPB, serverPortB string, P int) *Client {
+func CreateNewClient(id, serverIPA, serverPortA, serverIPB, serverPortB string, P int, bad bool) *Client {
 
 	// Create client
 	client := new(Client)
-	client.Init(id, serverIPA, serverIPB, serverPortA, serverPortB, P)
+	if client.Init(id, serverIPA, serverIPB, serverPortA, serverPortB, P, bad) {
+		// Return client
+		return client
+	}
 
-	// Return client
-	return client
+	return nil
 
 }
 

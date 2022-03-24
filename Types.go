@@ -33,6 +33,10 @@ func (r Request) ToTallyMsg() Results {
 	return Results{Yes: r.Val1, No: r.Val2}
 }
 
+func (r Request) toStrinceSlice() StringSlice {
+	return StringSlice{slice: r.Strs}
+}
+
 // R-Vote Message (Client -> Server)
 type RMessage struct {
 	Vote int
@@ -62,4 +66,25 @@ type Results struct {
 // Converts the RMessage into a request
 func (m Results) ToRequest() Request {
 	return Request{RequestType: TALLY, Val1: m.Yes, Val2: m.No}
+}
+
+type StringSlice struct {
+	slice []string
+}
+
+// Converts the StringSlice into a request
+func (SS StringSlice) ToRequest() Request {
+	return Request{RequestType: CLIENTLIST, Strs: SS.slice}
+}
+
+// Hash set of strings
+type StringHashSet map[string]interface{}
+
+// Convert a string slice into a hash set of strings
+func CheckmapFromStringSlice(input []string) StringHashSet {
+	result := StringHashSet{}
+	for _, v := range input {
+		result[v] = nil
+	}
+	return result
 }

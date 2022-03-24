@@ -11,12 +11,15 @@ import (
 // Struct for taking optional arguments to client spanwer
 type clientVote struct {
 	Id            string
+	portA         string
+	portB         string
 	Vote          int
 	Seed          int
 	P             int
 	DoSeed        bool
 	SwapPorts     bool
 	IgnoreResults bool
+	IsBad         bool
 }
 
 // Self IP address for testing
@@ -31,6 +34,7 @@ var testCases = []func() bool{
 	RunTest02,
 	RunTest03,
 	RunTest04,
+	RunTest05,
 }
 
 // Dispatches calls
@@ -305,14 +309,77 @@ func RunTest04() bool {
 
 }
 
+func RunTest05() bool {
+
+	// Init rand
+	rand.Seed(1)
+
+	// Log test
+	fmt.Println("--- Running test 5 ---")
+	fmt.Println()
+
+	// Log what we're testing
+	fmt.Println("Starting test-server - vote period is 15 seconds.")
+	fmt.Println("There will be 2 voters. 1 Yes voter and 1 No voter who will fail to connect to one server.")
+	fmt.Println()
+
+	// Create test server
+	localTestServer := CreateNewServer("Main Server", "11000", "11001", localIP, 15, true)
+	localTestServer.P = 991
+
+	// Spawn server
+	if _, e := TestUtil_SpawnTestProcess("-mode", "server", "-id", "otherServer", "-port", "11002", "-pport", "11001", "-t", "15", "-s", "1"); e != nil {
+		fmt.Printf("second server failed Error was %v.\n", e)
+		return false
+	}
+
+	// Wait 2s
+	fmt.Println()
+	fmt.Printf("@@@ TEST 5: Waiting 5s before spawning clients\n")
+	fmt.Println()
+	time.Sleep(5 * time.Second)
+
+	// Spawn voters
+	TestUtil_ClientVoteInstance(clientVote{Id: "yay", Vote: 1, DoSeed: true, Seed: 1})
+	TestUtil_ClientVoteInstance(clientVote{Id: "nay", Vote: 0, DoSeed: true, Seed: 1, IsBad: true, portB: "46948"})
+
+	// Wait for results
+	fmt.Println()
+	fmt.Printf("@@@ TEST 5: Waiting for results\n")
+	fmt.Println()
+
+	// Wait for local test server
+	res := localTestServer.WaitForResults()
+
+	fmt.Println()
+	fmt.Printf("@@@ TEST 5: Got results:\n\t%+v\n", res)
+	fmt.Println()
+
+	// Wait 1s before passing/failing
+	time.Sleep(1 * time.Second)
+
+	// Halt server
+	localTestServer.Halt()
+
+	// Do asserts
+	return res.No == 0 && res.Yes == 1
+
+}
+
 func TestUtil_ClientVoteInstance(data clientVote) {
 	var porta, portb string
+	if data.portA == "" {
+		data.portA = "11000"
+	}
+	if data.portB == "" {
+		data.portB = "11002"
+	}
 	if !data.SwapPorts {
-		porta = "11000"
-		portb = "11002"
+		porta = data.portA
+		portb = data.portB
 	} else {
-		porta = "11002"
-		portb = "11000"
+		porta = data.portB
+		portb = data.portA
 	}
 	args := []string{
 		"-mode", "client",
@@ -329,6 +396,9 @@ func TestUtil_ClientVoteInstance(data clientVote) {
 	}
 	if data.P != 0 {
 		args = append(args, "-p", fmt.Sprint(data.P))
+	}
+	if data.IsBad {
+		args = append(args, "-b")
 	}
 	if _, e := TestUtil_SpawnTestProcess(args...); e != nil {
 		panic(fmt.Errorf("assert failed: Voter failed to spawn"))

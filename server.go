@@ -16,6 +16,9 @@ type Voter struct {
 	// Connection to voter
 	Connection *net.Conn
 
+	// ID
+	Id string
+
 	// The secret share
 	RVal int
 
@@ -64,6 +67,8 @@ type Server struct {
 
 	// Flag marking if server is main (Handles R1 values)
 	MainServer bool
+
+	VoterIntersection StringHashSet
 
 	ClientListener *net.Listener
 	ServerListener *net.Listener
@@ -169,6 +174,7 @@ func (server *Server) HandleVoterConnection(conn *net.Conn) {
 			case CLIENTJOIN:
 				server.mutex.Lock()
 				voter := Voter{
+					Id:         newRequest.Strs[0],
 					Connection: conn,
 					Encoder:    gob.NewEncoder(*conn),
 					Decoder:    decoder,
@@ -226,11 +232,29 @@ func (server *Server) HandleServerPartnerConnect() {
 		case RNUMBER:
 			// We get r-value from partner, and "terminate"
 			rm := newRequest.ToRMsg()
-			fmt.Printf("[%s] Got a tally number from partner: %v.\n", server.ID, rm.Vote)
+			fmt.Printf("[%s] Got a R-tally number from partner: %v.\n", server.ID, rm.Vote)
 			if !server.MainServer {
 				server.EndVotePeriod()
 			}
 			server.DoTally(rm.Vote)
+		case CLIENTLIST:
+			server.mutex.Lock()
+			checklist := CheckmapFromStringSlice(newRequest.Strs)
+			common := make([]string, 0)
+			for _, v := range server.Clientsconnections {
+				if _, exists := checklist[v.Id]; exists {
+					common = append(common, v.Id)
+				}
+			}
+			server.VoterIntersection = CheckmapFromStringSlice(common)
+			server.mutex.Unlock()
+			if server.MainServer {
+				// goto next step in process
+				server.EndVotePeriod()
+			} else {
+				// Send common to main
+				server.sendClients(common)
+			}
 		}
 	}
 
@@ -336,16 +360,22 @@ func (server *Server) waitTime() {
 	fmt.Printf("[%s] Voting period ended. Counting votes...\n", server.ID)
 
 	// End vote period
-	server.EndVotePeriod()
-
+	//server.EndVotePeriod()
+	//Cross reference that clints are the same across servers.
+	server.sendClients(server.getClients(server.Clientsconnections))
 }
 
 func (server *Server) EndVotePeriod() {
 
+	fmt.Printf("[%s]: clients %s\n", server.ID, server.getClients(server.Clientsconnections))
+
 	// Tally up R-values
 	server.SelfRSum = 0
 	for _, v := range server.Clientsconnections {
-		server.SelfRSum += v.RVal
+		if _, exists := server.VoterIntersection[v.Id]; exists {
+			fmt.Printf("[%s] Counting R-vote of %s", server.ID, v.Id)
+			server.SelfRSum += v.RVal
+		}
 	}
 
 	// Log exit vote period
@@ -365,7 +395,7 @@ func (server *Server) DoTally(partnerR int) {
 	yes_vote := (server.SelfRSum + partnerR) % server.P
 
 	// Get nays
-	no_vote := len(server.Clientsconnections) - yes_vote
+	no_vote := len(server.VoterIntersection) - yes_vote
 
 	// Log in struct
 	tally := Results{
@@ -384,4 +414,20 @@ func (server *Server) Halt() {
 	(*server.ClientListener).Close()
 	(*server.ServerListener).Close()
 
+}
+
+func (server *Server) getClients(voters ConnectionMap) (strs []string) {
+	keys := make([]string, len(voters))
+	for _, v := range voters {
+		keys = append(keys, v.Id)
+	}
+	strs = keys
+	return
+}
+
+func (server *Server) sendClients(input []string) { //RMessage{Vote: server.SelfRSum}.ToRequest()
+	e := server.PartnerEncoder.Encode(StringSlice{slice: input}.ToRequest())
+	if e != nil {
+		fmt.Printf("[%s]  %e\n", server.ID, e)
+	}
 }

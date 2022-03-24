@@ -26,7 +26,7 @@ type Client struct {
 	decoderB *gob.Decoder
 }
 
-func (client *Client) Init(id, serverIA, serverIB, serverPA, serverPB string, P int) {
+func (client *Client) Init(id, serverIA, serverIB, serverPA, serverPB string, P int, bad bool) bool {
 
 	// Set identifier
 	client.Id = id
@@ -35,13 +35,23 @@ func (client *Client) Init(id, serverIA, serverIB, serverPA, serverPB string, P 
 	// Connect to server A
 	connA, encA, decA, typeA, err := ConnectServer(id, serverIA, serverPA)
 	if err != nil {
-		panic(err) // Cannot complete protocol when one party is not available
+		if !bad {
+			panic(err) // Cannot complete protocol when one party is not available
+		} else {
+			fmt.Printf("[%s] Bad client failed connection (S1) and silently shutting off...", id)
+			return false
+		}
 	}
 
 	// Connect to serverB
 	connB, encB, decB, typeB, err := ConnectServer(id, serverIB, serverPB)
 	if err != nil {
-		panic(err) // Cannot complete protocol when one party is not available
+		if !bad {
+			panic(err) // Cannot complete protocol when one party is not available
+		} else {
+			fmt.Printf("[%s] Bad client failed connection (S2) and silently shutting off...", id)
+			return false
+		}
 	}
 
 	if typeA == 1 { // Connection A = main
@@ -70,9 +80,16 @@ func (client *Client) Init(id, serverIA, serverIB, serverPA, serverPB string, P 
 
 	} else {
 
-		panic(fmt.Errorf("neither server was 'main' server"))
+		if bad {
+			panic(fmt.Errorf("neither server was 'main' server"))
+		} else {
+			fmt.Printf("[%s] Bad client, neither server were main!...", id)
+			return false
+		}
 
 	}
+
+	return true
 
 }
 
@@ -89,7 +106,7 @@ func ConnectServer(id, ip, port string) (*net.Conn, *gob.Encoder, *gob.Decoder, 
 	dec := gob.NewDecoder(conn)
 
 	// Send client join
-	e := enc.Encode(Request{RequestType: CLIENTJOIN})
+	e := enc.Encode(Request{RequestType: CLIENTJOIN, Strs: []string{id}})
 	if e != nil {
 		fmt.Printf("[%s] Error when sending join message: %e", id, e)
 	}
