@@ -11,6 +11,7 @@ const (
 	TALLY
 	CLIENTLIST
 	INTERSECTION
+	SERVERRESPONCE
 )
 
 // Define actual request type
@@ -18,6 +19,7 @@ type Request struct {
 	RequestType int
 	Val1        int
 	Val2        int
+	Val3        int
 	Strs        []string
 }
 
@@ -33,8 +35,12 @@ func (r Request) ToTallyMsg() Results {
 	return Results{Yes: r.Val1, No: r.Val2}
 }
 
-func (r Request) toStrinceSlice() StringSlice {
+func (r Request) ToStrinceSlice() StringSlice {
 	return StringSlice{slice: r.Strs}
+}
+
+func (r Request) ToServerJoinMsg() ServerJoinIDMessage {
+	return ServerJoinIDMessage{ID: r.Strs[0], serverID: r.Val1}
 }
 
 // R-Vote Message (Client -> Server)
@@ -55,6 +61,22 @@ type IDMessage struct {
 // Converts the RMessage into a request
 func (m IDMessage) ToRequest() Request {
 	return Request{RequestType: ID, Val1: m.ID}
+}
+
+// Server Join Message
+type ServerJoinIDMessage struct {
+	ID       string
+	serverID int
+}
+
+//Converts the ServerJoinIDMessage into a request
+func (sID ServerJoinIDMessage) ToRequest() Request {
+	return Request{RequestType: SERVERJOIN, Strs: []string{sID.ID}, Val1: sID.serverID}
+}
+
+//Converts the ServerJoinIDMessage into a request
+func (sID ServerJoinIDMessage) ToResponse() Request {
+	return Request{RequestType: SERVERRESPONCE, Strs: []string{sID.ID}, Val1: sID.serverID}
 }
 
 // Result message (Server -> Client)

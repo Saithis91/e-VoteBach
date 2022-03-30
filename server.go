@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"sort"
 	"sync"
 	"time"
 )
@@ -27,7 +28,28 @@ type Voter struct {
 	Decoder *gob.Decoder
 }
 
+//Struct for a partner instance
+type PartnerServer struct {
+	// Connection to Server
+	Connection *net.Conn
+
+	// ID
+	Id       string
+	ServerID int
+
+	// The secret share  // Is this needed?
+	//RVal int
+
+	// Gob encoder and deocer
+	Encoder *gob.Encoder
+	Decoder *gob.Decoder
+
+	//Common clientList
+	commonClientList bool
+}
+
 type ConnectionMap map[string]*Voter
+type ServerConnectionMap map[string]*PartnerServer
 
 // Struct for server instance
 type Server struct {
@@ -36,6 +58,9 @@ type Server struct {
 	PartnerConn    *net.Conn
 	PartnerEncoder *gob.Encoder
 
+	// Connection to the Pertner Servers
+	PartnerConns ServerConnectionMap
+
 	// (Global) map of all Clients connections
 	Clientsconnections ConnectionMap
 
@@ -43,15 +68,16 @@ type Server struct {
 	mutex *sync.Mutex
 
 	// Name of server (For debugging identification)
-	ID string
+	ID       string
+	ServerID int
 
 	// Self ip
-	SelfIP    string // self IP
-	PartnerIP string // IP of partner address
+	SelfIP     string   // self IP
+	PartnerIPs []string // IP of partner address
 
 	// Port vals
-	ListenPort  string // Port to listen for client/voter input
-	PartnerPort string // Port to listen and connect to on partners end
+	ListenPort   string   // Port to listen for client/voter input
+	PartnerPorts []string // Port to listen and connect to on partners end
 
 	// The time in seconds to vote
 	VoteTime int
@@ -61,6 +87,9 @@ type Server struct {
 
 	// Self R-value sum
 	SelfRSum int
+
+	// Channel for all points (alpha_i, r_i)
+	RPoints chan Point
 
 	// The P value
 	P int
@@ -72,6 +101,8 @@ type Server struct {
 
 	ClientListener *net.Listener
 	ServerListener *net.Listener
+
+	serverThresshold int
 }
 
 func (server *Server) InitClientSocket() {
@@ -112,12 +143,10 @@ func (server *Server) InitClientSocket() {
 
 }
 
-func (server *Server) InitServerSocket() {
+func (server *Server) InitServerSocket(port string) {
 
 	// Determine which server socket to create
-	var ip, port string
-	ip = server.SelfIP
-	port = server.PartnerPort
+	ip := server.SelfIP
 
 	// Begin listening
 	ln, err := net.Listen("tcp", fmt.Sprintf("%s:%s", ip, port))
@@ -144,9 +173,9 @@ func (server *Server) InitServerSocket() {
 		}
 
 		// Handle connection
-		server.PartnerConn = &conn
-		server.PartnerEncoder = gob.NewEncoder(conn)
-		go server.HandleServerPartnerConnect()
+		PartnerConn := &conn
+		PartnerEncoder := gob.NewEncoder(conn)
+		go server.HandleServerPartnerConnect(*PartnerConn, *PartnerEncoder)
 
 	}
 }
@@ -203,13 +232,15 @@ func (server *Server) HandleVoterConnection(conn *net.Conn) {
 	}
 }
 
-func (server *Server) HandleServerPartnerConnect() {
+func (server *Server) HandleServerPartnerConnect(conn net.Conn, encoder gob.Encoder) {
+
+	var Pserver PartnerServer
 
 	//Encoder and Decoder
-	decoder := gob.NewDecoder(*server.PartnerConn)
+	decoder := gob.NewDecoder(conn)
 
 	//Cleans up after connection finish
-	defer (*server.PartnerConn).Close()
+	defer (conn).Close()
 
 	// Handle incoming from partner connection
 	for {
@@ -218,25 +249,43 @@ func (server *Server) HandleServerPartnerConnect() {
 		e := decoder.Decode(&newRequest)
 		if e != nil {
 			if errors.Is(e, io.EOF) {
-				fmt.Printf("[%s] Connection closed to partner (EOF).\n", server.ID)
+				fmt.Printf("[%s] Connection closed to partner [%s] (EOF).\n", server.ID, Pserver.Id)
 				return
 			}
 		}
 
 		switch newRequest.RequestType {
 		case SERVERJOIN:
-			fmt.Printf("[%s] Connected with partner server.\n", server.ID)
+			server.mutex.Lock()
+			sID := newRequest.ToServerJoinMsg().ID
+			fmt.Printf("[%s] Connected with partner server with ID: %s.\n", server.ID, sID)
+			Pserver = PartnerServer{
+				Id:         newRequest.Strs[0],
+				ServerID:   newRequest.Val1,
+				Connection: &conn,
+				Encoder:    &encoder,
+				Decoder:    decoder,
+			}
+			server.PartnerConns[sID] = &Pserver
+			e := encoder.Encode(ServerJoinIDMessage{ID: server.ID}.ToResponse())
+			if e != nil {
+				panic(e)
+			}
+			server.mutex.Unlock()
 			if server.MainServer {
-				go server.waitTime()
+				if server.serverThresshold <= len(server.PartnerConns) {
+					go server.waitTime()
+				}
 			}
 		case RNUMBER:
 			// We get r-value from partner, and "terminate"
 			rm := newRequest.ToRMsg()
-			fmt.Printf("[%s] Got a R-tally number from partner: %v.\n", server.ID, rm.Vote)
-			if !server.MainServer {
+			fmt.Printf("[%s] Got a R-tally number from [%s]: %v.\n", server.ID, Pserver.Id, rm.Vote)
+			/*if !server.MainServer {
 				server.EndVotePeriod()
-			}
-			server.DoTally(rm.Vote)
+			}*/
+			server.RPoints <- Point{X: Pserver.ServerID, Y: rm.Vote}
+			server.DoTally()
 		case CLIENTLIST:
 			server.mutex.Lock()
 			checklist := CheckmapFromStringSlice(newRequest.Strs)
@@ -246,16 +295,40 @@ func (server *Server) HandleServerPartnerConnect() {
 					common = append(common, v.Id)
 				}
 			}
+			Pserver.commonClientList = true
 			server.VoterIntersection = CheckmapFromStringSlice(common)
 			server.mutex.Unlock()
 			if server.MainServer {
-				// goto next step in process
-				server.EndVotePeriod()
+				flag := true
+				for _, p := range server.PartnerConns {
+					if !p.commonClientList {
+						flag = false
+					}
+				}
+				if flag {
+					// goto next step in process
+					server.EndVotePeriod()
+				}
 			} else {
 				// Send common to main
 				server.sendClients(common)
 			}
+
+		case SERVERRESPONCE:
+			server.mutex.Lock()
+			sID := newRequest.ToServerJoinMsg()
+			fmt.Printf("[%s] Got Responce from partner server with ID: %s.\n", server.ID, sID.ID)
+			Pserver = PartnerServer{
+				Id:         sID.ID,
+				ServerID:   sID.serverID,
+				Connection: &conn,
+				Encoder:    &encoder,
+				Decoder:    decoder,
+			}
+			server.PartnerConns[sID.ID] = &Pserver
+			server.mutex.Unlock()
 		}
+
 	}
 
 }
@@ -272,34 +345,38 @@ func (server *Server) ConnectToServer(ip, port string) bool {
 	}
 
 	// Set incoming
-	server.PartnerConn = &conn
-	server.PartnerEncoder = gob.NewEncoder(conn)
+	PartnerConn := &conn
+	PartnerEncoder := gob.NewEncoder(conn)
 
 	// Send join message
-	e := server.PartnerEncoder.Encode(Request{RequestType: SERVERJOIN})
+	e := PartnerEncoder.Encode(ServerJoinIDMessage{ID: server.ID, serverID: server.ServerID}.ToRequest())
 	if e != nil {
 		panic(e)
 	}
 
 	// Handle partner connection
-	go server.HandleServerPartnerConnect()
+	go server.HandleServerPartnerConnect(*PartnerConn, *PartnerEncoder)
 
 	// Return true
 	return true
 
 }
 
-func (server *Server) Initialise(id, selfIP, partnerIP, listenPort, partnerPort string, waitTime int, mainServer bool) {
+func (server *Server) Initialise(serverID int, id, selfIP string, partnerIP []string, listenPort string, partnerPort []string, waitTime int, mainServer bool) {
 
 	// Init vals
 	server.mutex = &sync.Mutex{}
+	server.ServerID = serverID
 	server.ID = id
 	server.SelfIP = selfIP
-	server.PartnerIP = partnerIP
+	server.PartnerIPs = partnerIP
 	server.Clientsconnections = ConnectionMap{}
+	server.PartnerConns = ServerConnectionMap{}
 	server.VoteTime = waitTime
 	server.Tally = make(chan Results, 1)
+	server.RPoints = make(chan Point, 3)
 	server.MainServer = mainServer
+	server.serverThresshold = 2
 
 	// Log what we're doing
 	fmt.Printf("[%s][server Startup] I am main: %v\n", id, mainServer)
@@ -308,11 +385,15 @@ func (server *Server) Initialise(id, selfIP, partnerIP, listenPort, partnerPort 
 
 	// Set port
 	server.ListenPort = listenPort
-	server.PartnerPort = partnerPort
+	server.PartnerPorts = partnerPort
 
-	//Try connect to partner
-	if !server.ConnectToServer(server.PartnerIP, server.PartnerPort) {
-		go server.InitServerSocket()
+	//Try connect to partners
+	for i := 0; i < len(server.PartnerIPs); i++ {
+		if !server.ConnectToServer(server.PartnerIPs[i], server.PartnerPorts[i]) {
+			go server.InitServerSocket(server.PartnerPorts[i])
+			break
+		}
+
 	}
 
 	// Go init server sockets
@@ -338,7 +419,11 @@ func (server *Server) WaitForResults() Results {
 	}
 
 	// terminate
-	(*server.PartnerConn).Close()
+	//(*server.PartnerConn).Close()
+
+	for _, partner := range server.PartnerConns {
+		(*partner.Connection).Close()
+	}
 
 	// Return the results
 	return results
@@ -382,17 +467,30 @@ func (server *Server) EndVotePeriod() {
 	fmt.Printf("[%s] Voting period ended. Got R-value of %v\n", server.ID, server.SelfRSum)
 
 	// Send new r-value to partner
-	e := server.PartnerEncoder.Encode(RMessage{Vote: server.SelfRSum}.ToRequest())
-	if e != nil {
-		fmt.Printf("[%s] Failed to send accumulated R-value to partner, %e\n", server.ID, e)
+	for _, partner := range server.PartnerConns {
+		e := partner.Encoder.Encode(RMessage{Vote: server.SelfRSum}.ToRequest())
+		if e != nil {
+			fmt.Printf("[%s] Failed to send accumulated R-value to partner, %e\n", server.ID, e)
+		} else {
+			fmt.Printf("[%s] sent accumulated R-value(%d) to partner, %s\n", server.ID, server.SelfRSum, partner.Id)
+		}
 	}
 
 }
 
-func (server *Server) DoTally(partnerR int) {
+func (server *Server) DoTally() {
+
+	// Grab points
+	a := <-server.RPoints
+	b := <-server.RPoints
+	c := <-server.RPoints
+
+	// Define  array
+	points := []Point{a, b, c}
+	sort.Sort(PointXSort(points))
 
 	// Get (yes) votes
-	yes_vote := (server.SelfRSum + partnerR) % server.P
+	yes_vote := Lagrange(0, points...)
 
 	// Get nays
 	no_vote := len(server.VoterIntersection) - yes_vote
@@ -426,8 +524,10 @@ func (server *Server) getClients(voters ConnectionMap) (strs []string) {
 }
 
 func (server *Server) sendClients(input []string) { //RMessage{Vote: server.SelfRSum}.ToRequest()
-	e := server.PartnerEncoder.Encode(StringSlice{slice: input}.ToRequest())
-	if e != nil {
-		fmt.Printf("[%s]  %e\n", server.ID, e)
+	for _, partner := range server.PartnerConns {
+		e := partner.Encoder.Encode(StringSlice{slice: input}.ToRequest())
+		if e != nil {
+			fmt.Printf("[%s]  Sending clients %e to %s\n", server.ID, e, partner.Id)
+		}
 	}
 }

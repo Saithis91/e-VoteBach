@@ -3,8 +3,19 @@ package main
 import (
 	"encoding/gob"
 	"fmt"
-	"math/rand"
+
 	"net"
+)
+
+const (
+	// Const index of server A (main)
+	SERVER_A = 0
+
+	// Const index of server B (secondary)
+	SERVER_B = 1
+
+	// Const index of server C (tertiary)
+	SERVER_C = 2
 )
 
 type Client struct {
@@ -12,28 +23,45 @@ type Client struct {
 	// Client data
 	P  int
 	Id string
+	K  int
 
 	// Server connections
-	ServerA *net.Conn
-	ServerB *net.Conn
+	Servers []*net.Conn
 
 	// Encoders
-	EncoderA *gob.Encoder
-	EncoderB *gob.Encoder
+	Encoders []*gob.Encoder
 
 	// Decoders
-	decoderA *gob.Decoder
-	decoderB *gob.Decoder
+	Decoders []*gob.Decoder
 }
 
-func (client *Client) Init(id, serverIA, serverIB, serverPA, serverPB string, P int, bad bool) bool {
+func (client *Client) Init(id string, servers, ports []string, P, K int, bad bool) bool {
+
+	// Grab len
+	serverCount := len(servers)
+
+	// If serverCount = 1, copy
+	if serverCount == 1 {
+		servers = []string{servers[0], servers[0], servers[0]}
+	}
+
+	// If server count is not 3, PANIC (at the disco)
+	if serverCount != 3 {
+		panic(fmt.Errorf("expected 3 servers IPs but were given %v", serverCount))
+	}
+
+	// Verify port count (must be 3 separate)
+	if len(ports) != 3 {
+		panic(fmt.Errorf("expected 3 servers ports but were given %v", len(ports)))
+	}
 
 	// Set identifier
 	client.Id = id
 	client.P = P
+	client.K = K
 
 	// Connect to server A
-	connA, encA, decA, typeA, err := ConnectServer(id, serverIA, serverPA)
+	connA, encA, decA, typeA, err := ConnectServer(id, servers[0], ports[0])
 	if err != nil {
 		if !bad {
 			panic(err) // Cannot complete protocol when one party is not available
@@ -44,7 +72,7 @@ func (client *Client) Init(id, serverIA, serverIB, serverPA, serverPB string, P 
 	}
 
 	// Connect to serverB
-	connB, encB, decB, typeB, err := ConnectServer(id, serverIB, serverPB)
+	connB, encB, decB, typeB, err := ConnectServer(id, servers[1], ports[1])
 	if err != nil {
 		if !bad {
 			panic(err) // Cannot complete protocol when one party is not available
@@ -54,42 +82,45 @@ func (client *Client) Init(id, serverIA, serverIB, serverPA, serverPB string, P 
 		}
 	}
 
-	if typeA == 1 { // Connection A = main
-
-		// Set A stuff
-		client.ServerA = connA
-		client.EncoderA = encA
-		client.decoderA = decA
-
-		// Set B stuff
-		client.ServerB = connB
-		client.EncoderB = encB
-		client.decoderB = decB
-
-	} else if typeB == 1 { // Connection B = main
-
-		// Set A stuff
-		client.ServerA = connB
-		client.EncoderA = encB
-		client.decoderA = decB
-
-		// Set B stuff
-		client.ServerB = connA
-		client.EncoderB = encA
-		client.decoderB = decA
-
-	} else {
-
-		if bad {
-			panic(fmt.Errorf("neither server was 'main' server"))
+	// Connect to serverB
+	connC, encC, decC, typeC, err := ConnectServer(id, servers[2], ports[2])
+	if err != nil {
+		if !bad {
+			panic(err) // Cannot complete protocol when one party is not available
 		} else {
-			fmt.Printf("[%s] Bad client, neither server were main!...", id)
+			fmt.Printf("[%s] Bad client failed connection (S2) and silently shutting off...", id)
 			return false
 		}
-
 	}
 
-	return true
+	// Form arrays
+	roles := []int{typeA, typeB, typeC}
+	cons := []*net.Conn{connA, connB, connC}
+	encs := []*gob.Encoder{encA, encB, encC}
+	decs := []*gob.Decoder{decA, decB, decC}
+
+	// Assign
+	allServers := client.AssignServerRole(SERVER_A, roles, cons, encs, decs)
+	allServers = allServers && client.AssignServerRole(SERVER_B, roles, cons, encs, decs)
+	allServers = allServers && client.AssignServerRole(SERVER_C, roles, cons, encs, decs)
+
+	// Return result of assign
+	return allServers
+
+}
+
+func (client *Client) AssignServerRole(role int, roles []int, connections []*net.Conn, encoders []*gob.Encoder, decoders []*gob.Decoder) bool {
+
+	for k, v := range roles {
+		if v == role {
+			client.Servers[role] = connections[k]
+			client.Encoders[role] = encoders[k]
+			client.Decoders[role] = decoders[k]
+			return true
+		}
+	}
+
+	return false
 
 }
 
@@ -130,21 +161,23 @@ func ConnectServer(id, ip, port string) (*net.Conn, *gob.Encoder, *gob.Decoder, 
 func (client *Client) SendVote(vote int) {
 
 	// Get R1, R2
-	r1, r2, _ := Secrify(vote, client.P)
+	r1, r2, r3 := Secrify(vote, client.P, client.K)
+
+	// To array
+	shares := []int{r1, r2, r3}
 
 	// Log
-	fmt.Printf("[%s] My secret is %v, with R1 = %v and R2 = %v\n", client.Id, vote, r1, r2)
+	fmt.Printf("[%s] My secret is %v, with R1 = %v, R2 = %v, and R3 = %v\n", client.Id, vote, r1, r2, r3)
 
-	// Send r1 to S1
-	e := client.EncoderA.Encode(RMessage{Vote: r1}.ToRequest())
-	if e != nil {
-		fmt.Printf("[%s] Error when sending R1: %e\n", client.Id, e)
-	}
+	// Loop over
+	for k, v := range shares {
 
-	// Send r2 to S2
-	e = client.EncoderB.Encode(RMessage{Vote: r2}.ToRequest())
-	if e != nil {
-		fmt.Printf("[%s] Error when sending R2: %e\n", client.Id, e)
+		// Send r1 to S1
+		e := client.Encoders[k].Encode(RMessage{Vote: v}.ToRequest())
+		if e != nil {
+			fmt.Printf("[%s] Error when sending R1: %e\n", client.Id, e)
+		}
+
 	}
 
 }
@@ -172,22 +205,24 @@ func AwaitResponse(server *net.Conn, dec *gob.Decoder, ch chan Results) {
 
 func (client *Client) Shutdown(waitForResults bool) {
 
-	// If wait - we wait for S1 or S2 to return something
+	// If wait - we wait for S1, S2, and s3 to return something
 	if waitForResults {
 
 		// Create channel
-		countChan := make(chan Results, 2)
+		countChan := make(chan Results, 3)
 
-		// Go read
-		go AwaitResponse(client.ServerA, client.decoderA, countChan)
-		go AwaitResponse(client.ServerB, client.decoderB, countChan)
+		// Go wait
+		for k, _ := range client.Servers {
+			go AwaitResponse(client.Servers[k], client.Decoders[k], countChan)
+		}
 
 		// Wait for both to come in (We don't know in which order)
 		countA := <-countChan
 		countB := <-countChan
+		countC := <-countChan
 
 		// If agreement, print; otherwise inform of mismatching results.
-		if countA.Yes == countB.Yes && countA.No == countB.No {
+		if countA.Yes == countB.Yes && countA.No == countB.No && countA.Yes == countC.Yes && countA.No == countC.No {
 			fmt.Printf("[%s] Yes Votes: %v, No Votes: %v (Total %v).\n", client.Id, countA.Yes, countA.No, countA.Yes+countA.No)
 		} else {
 			fmt.Printf("[%s] Received two results that do no agree!\n\tServer A = %+v\n\tServer B = %+v\n", client.Id, countA, countB)
@@ -199,28 +234,8 @@ func (client *Client) Shutdown(waitForResults bool) {
 	}
 
 	// Shutdown
-	(*client.ServerA).Close()
-	(*client.ServerB).Close()
+	for _, s := range client.Servers {
+		(*s).Close()
+	}
 
-}
-
-func Secrify(x, p int) (r1, r2, r3 int) {
-
-	// Pick R1 at random within the field of Z, upper bounded by P-1
-	r1 = rand.Intn(p - 1)
-
-	// Calculate R2
-	r2 = Mod(x-r1, p)
-
-	r3 = 0
-
-	return
-}
-
-// Apparently Go has a 'botched' modulo operator implementation
-// Which can yield negative numbers - which does not adhere to the strict
-// mathemtatical modulo operation we require.
-// Code from https://www.reddit.com/r/golang/comments/bnvik4/modulo_in_golang/
-func Mod(a int, b int) int {
-	return (a + b) % b
 }
