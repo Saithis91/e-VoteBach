@@ -130,7 +130,7 @@ func ConnectServer(id, ip, port string) (*net.Conn, *gob.Encoder, *gob.Decoder, 
 func (client *Client) SendVote(vote int) {
 
 	// Get R1, R2
-	r1, r2 := Secrify(vote, client.P)
+	r1, r2, _ := Secrify(vote, client.P)
 
 	// Log
 	fmt.Printf("[%s] My secret is %v, with R1 = %v and R2 = %v\n", client.Id, vote, r1, r2)
@@ -204,13 +204,15 @@ func (client *Client) Shutdown(waitForResults bool) {
 
 }
 
-func Secrify(x, p int) (r1, r2 int) {
+func Secrify(x, p int) (r1, r2, r3 int) {
 
 	// Pick R1 at random within the field of Z, upper bounded by P-1
 	r1 = rand.Intn(p - 1)
 
 	// Calculate R2
 	r2 = Mod(x-r1, p)
+
+	r3 = 0
 
 	return
 }
