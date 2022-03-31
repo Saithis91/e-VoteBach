@@ -1,6 +1,8 @@
 package main
 
-import "math/rand"
+import (
+	"math/rand"
+)
 
 // Secrifies the vote 'x' into three shares, using shamir sharing.
 // @x = The vote (in {0, 1})
@@ -12,7 +14,7 @@ func Secrify(x, p, k int) (r1, r2, r3 int) {
 	as := make([]int, 0)
 	upper := p - 1
 	for i := 0; i < k; i++ {
-		ai := rand.Intn(upper*2) - upper // should allow for negative numbers, easy to fix if we should refrain
+		ai := rand.Intn(upper)
 		as = append(as, ai)
 	}
 
@@ -37,6 +39,16 @@ func Poly(x, s, p int, a []int) int {
 	}
 	// "overuse" of mod p is based on comments in last paragraph of
 	// https://medium.com/partisia-blockchain/mpc-techniques-series-part-3-secret-sharing-shamir-style-f2a952fa7828
+	return y
+}
+
+func Poly2(x, s int, a []int) int {
+	y := s
+	for e, v := range a {
+		xpow := IPow(x, e+1)
+		cx := v * xpow
+		y = y + cx
+	}
 	return y
 }
 
@@ -77,18 +89,20 @@ func (a PointXSort) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 // Computes L(x) for the set of given points.
 func Lagrange(x int, points ...Point) int {
 	l := 0
-	for i, p := range points {
-		l += p.Y * LagrangeBasis(x, i, points)
+	k := len(points)
+	for j := 0; j < k; j++ {
+		l += points[j].Y * LagrangeBasis(x, j, k, points)
 	}
 	return l
 }
 
 // Computes eel(x) for the set of given points at x w.r.t i
-func LagrangeBasis(x, i int, points []Point) int {
+func LagrangeBasis(x, j, k int, points []Point) int {
 	l := 1
-	for j, p := range points {
-		if j != i {
-			l *= (x - p.X) / (points[i].X - p.X)
+	x_j := points[j].X
+	for m := 0; m < k; m++ {
+		if m != j {
+			l *= (x - points[m].X) / (x_j - points[m].X)
 		}
 	}
 	return l

@@ -40,9 +40,10 @@ func (client *Client) Init(id string, servers, ports []string, P, K int, bad boo
 	// Grab len
 	serverCount := len(servers)
 
-	// If serverCount = 1, copy
+	// If serverCount = 1, copy (Assumption is the IP is the same for all servers)
 	if serverCount == 1 {
 		servers = []string{servers[0], servers[0], servers[0]}
+		serverCount = len(servers)
 	}
 
 	// If server count is not 3, PANIC (at the disco)
@@ -59,6 +60,11 @@ func (client *Client) Init(id string, servers, ports []string, P, K int, bad boo
 	client.Id = id
 	client.P = P
 	client.K = K
+
+	// Make arrays
+	client.Servers = make([]*net.Conn, 3)
+	client.Decoders = make([]*gob.Decoder, 3)
+	client.Encoders = make([]*gob.Encoder, 3)
 
 	// Connect to server A
 	connA, encA, decA, typeA, err := ConnectServer(id, servers[0], ports[0])
@@ -104,6 +110,9 @@ func (client *Client) Init(id string, servers, ports []string, P, K int, bad boo
 	allServers = allServers && client.AssignServerRole(SERVER_B, roles, cons, encs, decs)
 	allServers = allServers && client.AssignServerRole(SERVER_C, roles, cons, encs, decs)
 
+	// Log
+	fmt.Printf("[%s] All servers connected: %v\n", client.Id, allServers)
+
 	// Return result of assign
 	return allServers
 
@@ -112,7 +121,7 @@ func (client *Client) Init(id string, servers, ports []string, P, K int, bad boo
 func (client *Client) AssignServerRole(role int, roles []int, connections []*net.Conn, encoders []*gob.Encoder, decoders []*gob.Decoder) bool {
 
 	for k, v := range roles {
-		if v == role {
+		if v == role+1 {
 			client.Servers[role] = connections[k]
 			client.Encoders[role] = encoders[k]
 			client.Decoders[role] = decoders[k]
@@ -120,6 +129,8 @@ func (client *Client) AssignServerRole(role int, roles []int, connections []*net
 		}
 	}
 
+	// Log failure and return false
+	fmt.Printf("[%s] Failed to connect to server %v - Reported roles were: %v.\n", client.Id, role, roles)
 	return false
 
 }

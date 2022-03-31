@@ -103,6 +103,9 @@ type Server struct {
 	ServerListener *net.Listener
 
 	serverThresshold int
+
+	//Summed the Votes
+	didSum bool
 }
 
 func (server *Server) InitClientSocket() {
@@ -210,11 +213,7 @@ func (server *Server) HandleVoterConnection(conn *net.Conn) {
 				}
 				server.Clientsconnections[voterAddr] = &voter
 				fmt.Printf("[%s] Registered new voter.\n", server.ID)
-				if server.MainServer {
-					voter.Encoder.Encode(Request{RequestType: ID, Val1: 1})
-				} else {
-					voter.Encoder.Encode(Request{RequestType: ID, Val1: 2})
-				}
+				voter.Encoder.Encode(Request{RequestType: ID, Val1: server.ServerID})
 				server.mutex.Unlock()
 				// Would be here where more stuff would be handled like identification, some exchange of keys etc.
 			case RNUMBER:
@@ -235,7 +234,6 @@ func (server *Server) HandleVoterConnection(conn *net.Conn) {
 func (server *Server) HandleServerPartnerConnect(conn net.Conn, encoder gob.Encoder) {
 
 	var Pserver PartnerServer
-
 	//Encoder and Decoder
 	decoder := gob.NewDecoder(conn)
 
@@ -267,7 +265,7 @@ func (server *Server) HandleServerPartnerConnect(conn net.Conn, encoder gob.Enco
 				Decoder:    decoder,
 			}
 			server.PartnerConns[sID] = &Pserver
-			e := encoder.Encode(ServerJoinIDMessage{ID: server.ID}.ToResponse())
+			e := encoder.Encode(ServerJoinIDMessage{ID: server.ID, serverID: server.ServerID}.ToResponse())
 			if e != nil {
 				panic(e)
 			}
@@ -280,12 +278,20 @@ func (server *Server) HandleServerPartnerConnect(conn net.Conn, encoder gob.Enco
 		case RNUMBER:
 			// We get r-value from partner, and "terminate"
 			rm := newRequest.ToRMsg()
+			server.mutex.Lock()
 			fmt.Printf("[%s] Got a R-tally number from [%s]: %v.\n", server.ID, Pserver.Id, rm.Vote)
 			/*if !server.MainServer {
 				server.EndVotePeriod()
 			}*/
 			server.RPoints <- Point{X: Pserver.ServerID, Y: rm.Vote}
-			server.DoTally()
+			if !server.didSum {
+				server.EndVotePeriod()
+				server.didSum = true
+			}
+			if len(server.RPoints) >= 3 {
+				server.DoTally()
+			}
+			server.mutex.Unlock()
 		case CLIENTLIST:
 			server.mutex.Lock()
 			checklist := CheckmapFromStringSlice(newRequest.Strs)
@@ -297,7 +303,6 @@ func (server *Server) HandleServerPartnerConnect(conn net.Conn, encoder gob.Enco
 			}
 			Pserver.commonClientList = true
 			server.VoterIntersection = CheckmapFromStringSlice(common)
-			server.mutex.Unlock()
 			if server.MainServer {
 				flag := true
 				for _, p := range server.PartnerConns {
@@ -307,17 +312,24 @@ func (server *Server) HandleServerPartnerConnect(conn net.Conn, encoder gob.Enco
 				}
 				if flag {
 					// goto next step in process
-					server.EndVotePeriod()
+					if !server.didSum {
+						server.EndVotePeriod()
+						server.didSum = true
+					}
 				}
 			} else {
 				// Send common to main
-				server.sendClients(common)
+				if !server.didSum {
+					server.sendClients(common)
+				}
 			}
+
+			server.mutex.Unlock()
 
 		case SERVERRESPONCE:
 			server.mutex.Lock()
 			sID := newRequest.ToServerJoinMsg()
-			fmt.Printf("[%s] Got Responce from partner server with ID: %s.\n", server.ID, sID.ID)
+			fmt.Printf("[%s] Got Responce from partner server with ID: %s: %d.\n", server.ID, sID.ID, sID.serverID)
 			Pserver = PartnerServer{
 				Id:         sID.ID,
 				ServerID:   sID.serverID,
@@ -377,6 +389,7 @@ func (server *Server) Initialise(serverID int, id, selfIP string, partnerIP []st
 	server.RPoints = make(chan Point, 3)
 	server.MainServer = mainServer
 	server.serverThresshold = 2
+	server.didSum = false
 
 	// Log what we're doing
 	fmt.Printf("[%s][server Startup] I am main: %v\n", id, mainServer)
@@ -387,10 +400,18 @@ func (server *Server) Initialise(serverID int, id, selfIP string, partnerIP []st
 	server.ListenPort = listenPort
 	server.PartnerPorts = partnerPort
 
+	// If serverCount = 1, copy (Assumption is the IP is the same for all servers)
+	if len(server.PartnerIPs) == 1 {
+		for i := 1; i < len(server.PartnerPorts); i++ {
+			server.PartnerIPs = append(server.PartnerIPs, server.PartnerIPs[0])
+		}
+	}
+
 	//Try connect to partners
 	for i := 0; i < len(server.PartnerIPs); i++ {
 		if !server.ConnectToServer(server.PartnerIPs[i], server.PartnerPorts[i]) {
 			go server.InitServerSocket(server.PartnerPorts[i])
+			fmt.Printf("[%s]Could not find other servers", id)
 			break
 		}
 
@@ -458,13 +479,16 @@ func (server *Server) EndVotePeriod() {
 	server.SelfRSum = 0
 	for _, v := range server.Clientsconnections {
 		if _, exists := server.VoterIntersection[v.Id]; exists {
-			fmt.Printf("[%s] Counting R-vote of %s", server.ID, v.Id)
+			fmt.Printf("[%s] Counting R-vote of %s\n", server.ID, v.Id)
 			server.SelfRSum += v.RVal
 		}
 	}
 
 	// Log exit vote period
 	fmt.Printf("[%s] Voting period ended. Got R-value of %v\n", server.ID, server.SelfRSum)
+
+	// Put our point into self R-point
+	server.RPoints <- Point{X: server.ServerID, Y: server.SelfRSum}
 
 	// Send new r-value to partner
 	for _, partner := range server.PartnerConns {
@@ -485,15 +509,26 @@ func (server *Server) DoTally() {
 	b := <-server.RPoints
 	c := <-server.RPoints
 
-	// Define  array
-	points := []Point{a, b, c}
-	sort.Sort(PointXSort(points))
+	// Define vars
+	var yes_vote, no_vote int
 
-	// Get (yes) votes
-	yes_vote := Lagrange(0, points...)
+	// Sanity check -> any votes?
+	if a.Y+b.Y+c.Y > 0 {
 
-	// Get nays
-	no_vote := len(server.VoterIntersection) - yes_vote
+		// Define  array
+		points := []Point{a, b, c}
+		sort.Sort(PointXSort(points))
+
+		// Log points
+		fmt.Printf("[%s] My points for lagrange interpolation is: %v.\n", server.ID, points)
+
+		// Get (yes) votes
+		yes_vote = Lagrange(0, points...)
+
+		// Get nays
+		no_vote = len(server.VoterIntersection) - yes_vote
+
+	}
 
 	// Log in struct
 	tally := Results{
