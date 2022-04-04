@@ -36,6 +36,7 @@ var testCases = []func() bool{
 	RunTest03,
 	RunTest04,
 	RunTest05,
+	RunTest06,
 }
 
 // Dispatches calls
@@ -278,6 +279,31 @@ func RunTest05() bool {
 
 	// Return compute result
 	return h0_i == h0_s
+
+}
+
+func RunTest06() bool {
+
+	// Do 1+1 in Gf(2^8)
+	a := Gf_One()
+	b := Gf_One()
+
+	// Compute a + b
+	c := a.Add(b)
+
+	// Do assert
+	AssertIsTrue(c.ToByte() == 0, fmt.Sprintf("%v != 0", c.ToByte()))
+
+	// Do second assert
+	c = Gf_FromByte(25).Mul(Gf_FromByte(2))
+	AssertIsTrue(c.ToByte() == 50, fmt.Sprintf("%v != 50", c.ToByte()))
+
+	// Do third assert
+	c = Gf_FromByte(25).Div(Gf_FromByte(2))
+	AssertIsTrue(c.ToByte() == 130, fmt.Sprintf("%v != 130", c.ToByte()))
+
+	// Yey
+	return true
 
 }
 

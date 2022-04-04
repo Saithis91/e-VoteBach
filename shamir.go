@@ -105,7 +105,7 @@ func LagrangeBasis(x, j, k int, points []Point) int {
 			l *= (x - points[m].X) / (x_j - points[m].X)
 		}
 	}
-	return l
+	return l // TODO: Multiplicative inverse of (x_j - points[m].X)
 }
 
 // Computes L(0) from the set of r1, r2, r3 values
