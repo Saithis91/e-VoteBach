@@ -155,22 +155,3 @@ func (x Gf) Div(y Gf) Gf {
 		}
 	}
 }
-
-// Peforms x^y operation and stays in (unsigned-)integer domain.
-// Using math.pow would require casting which *could* lead to incorrect values because floating points
-func BPow(x, y byte) uint {
-	if y == 0 {
-		return 1
-	}
-	z := uint(x)
-	for i := byte(2); i <= y; i++ {
-		z *= uint(x)
-	}
-	return z
-}
-
-// Performs arithmetic modulo
-func BMod(x, y uint) uint {
-	p := uint(y)
-	return (uint(x) + p) % p
-}
