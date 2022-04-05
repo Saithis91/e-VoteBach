@@ -513,22 +513,22 @@ func (server *Server) DoTally() {
 	var yes_vote, no_vote uint8
 
 	// Sanity check -> any votes?
-	if Gf_Sum(a.Y, b.Y, c.Y).ToByte() > 0 {
+	//if Gf_Sum(a.Y, b.Y, c.Y).ToByte() > 0 {
 
-		// Define  array
-		points := []GfPoint{a, b, c}
-		sort.Sort(GfPointXSort(points))
+	// Define  array
+	points := []GfPoint{a, b, c}
+	sort.Sort(GfPointXSort(points))
 
-		// Log points
-		fmt.Printf("[%s] My points for lagrange interpolation is: %v.\n", server.ID, points)
+	// Log points
+	fmt.Printf("[%s] My points for lagrange interpolation is: %v.\n", server.ID, points)
 
-		// Get (yes) votes
-		yes_vote = LagrangeGf(uint8(0), points...).ToByte()
+	// Get (yes) votes
+	yes_vote = LagrangeGf(uint8(0), points...).ToByte()
 
-		// Get nays
-		no_vote = uint8(len(server.VoterIntersection)) - yes_vote
+	// Get nays
+	no_vote = uint8(len(server.VoterIntersection)) - yes_vote
 
-	}
+	//}
 
 	// Log in struct
 	tally := Results{

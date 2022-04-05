@@ -162,13 +162,17 @@ func Lagrange(x int, points ...Point) int {
 
 // Computes L(x) for the set of given points
 func LagrangeGf(x uint8, points ...GfPoint) Gf {
-	l := Gf_Zero()
+	//l := Gf_Zero()
 	k := len(points)
 	x_gf := Gf_FromByte(x)
+	ts := make([]Gf, 0)
 	for j := 0; j < k; j++ {
-		basis := LagrangeBasisGf(j, k, x_gf, points)
-		l = l.Add(points[j].Y.Mul(basis))
+		t := points[j].Y.Mul(LagrangeBasisGf(j, k, x_gf, points))
+		ts = append(ts, t)
+		//l = l.Add(t)
+		fmt.Printf("t=%v\n", t)
 	}
+	l := Gf_Sum(ts...)
 	return l
 }
 
@@ -202,10 +206,15 @@ func LagrangeBasisGf(i, k int, x Gf, points []GfPoint) Gf {
 	return l
 }
 
+// Computes L(x) from r1, r2, r3 values
+func LagrangeXGf(x uint8, r1, r2, r3 uint8) uint8 {
+	l0 := LagrangeGf(x, GfPoint{Y: Gf_FromByte(r1), X: Gf_FromByte(1)}, GfPoint{Y: Gf_FromByte(r2), X: Gf_FromByte(2)}, GfPoint{Y: Gf_FromByte(r3), X: Gf_FromByte(3)})
+	return l0.ToByte()
+}
+
 // Computes L(0) from r1, r2, r3 values
 func Lagrange0Gf(r1, r2, r3 uint8) uint8 {
-	l0 := LagrangeGf(0, GfPoint{Y: Gf_FromByte(r1), X: Gf_FromByte(1)}, GfPoint{Y: Gf_FromByte(r2), X: Gf_FromByte(2)}, GfPoint{Y: Gf_FromByte(r3), X: Gf_FromByte(3)})
-	return l0.ToByte()
+	return LagrangeXGf(0, r1, r2, r3)
 }
 
 // Computes L(0) from the set of r1, r2, r3 values

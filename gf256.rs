@@ -211,14 +211,14 @@ fn main() {
             println!("")
         }
     }
-    println!("1^1={}", 1 ^ 1);*/
+    println!("1^1={}", 1 ^ 1);
 
 	let points = [(1, 5), (2, 8), (3, 11)];
 	let p = lagrange_interpolate(&points, 0);
 
 	println!("L(0)={}", p);
-
-	let points = [(1, 182), (2, 113), (3, 199)];
+	*/
+	let points = [(1, 244), (2, 246), (3, 3)];
 	let p = lagrange_interpolate(&points, 0);
 
 	println!("L(0)={}", p);

@@ -41,6 +41,9 @@ var testCases = []func() bool{
 	RunTest08,
 	RunTest09,
 	RunTest10,
+	RunTest11,
+	RunTest12,
+	RunTest13,
 }
 
 // Dispatches calls
@@ -343,7 +346,7 @@ func RunTest07() bool {
 	fmt.Printf("l0 = %v.\n", l0)
 
 	// Return true
-	return true
+	return l0 == 2
 
 }
 
@@ -420,9 +423,9 @@ func RunTest10() bool {
 	time.Sleep(5 * time.Second)
 
 	// Spawn voters
-	TestUtil_ClientVoteInstance(clientVote{id: "1", name: "yay", Vote: 1})
-	TestUtil_ClientVoteInstance(clientVote{id: "2", name: "nay2", Vote: 0})
-	TestUtil_ClientVoteInstance(clientVote{id: "3", name: "nay3", Vote: 0})
+	TestUtil_ClientVoteInstance(clientVote{id: "1", name: "yay1", Vote: 1})
+	TestUtil_ClientVoteInstance(clientVote{id: "2", name: "yay2", Vote: 1})
+	TestUtil_ClientVoteInstance(clientVote{id: "3", name: "yay3", Vote: 1})
 	TestUtil_ClientVoteInstance(clientVote{id: "4", name: "nay4", Vote: 0})
 	TestUtil_ClientVoteInstance(clientVote{id: "5", name: "nay5", Vote: 0})
 	TestUtil_ClientVoteInstance(clientVote{id: "6", name: "nay6", Vote: 0})
@@ -448,7 +451,145 @@ func RunTest10() bool {
 	localTestServer.Halt()
 
 	// Do asserts
-	return res.No == 7 && res.Yes == 1
+	return res.No == 5 && res.Yes == 3
+}
+
+func RunTest11() bool {
+	// Init rand
+	rand.Seed(1)
+
+	// Log test
+	fmt.Println("--- Running test 11 ---")
+	fmt.Println()
+
+	// Log what we're testing
+	fmt.Println("Starting test-server")
+	fmt.Println()
+	// Create test server
+	localTestServer := CreateNewServer(1, "Main Server", "10000", []string{"11001"}, []string{localIP, localIP}, 30, true)
+	localTestServer.P = 991
+
+	time.Sleep(2 * time.Second)
+	// Spawn server
+	if _, e := TestUtil_SpawnTestProcess("-id", "2", "-mode", "server", "-name", "otherServer", "-port", "10001", "-pport", "11001,11002", "-s", "1"); e != nil {
+		fmt.Printf("second server failed Error was %v.\n", e)
+		return false
+	}
+
+	time.Sleep(2 * time.Second)
+	// Spawn server
+	if _, e := TestUtil_SpawnTestProcess("-id", "3", "-mode", "server", "-name", "ThirdServer", "-port", "10002", "-pport", "11001,11002", "-s", "1"); e != nil {
+		fmt.Printf("second server failed Error was %v.\n", e)
+		return false
+	}
+	// Wait 2s
+	fmt.Println()
+	fmt.Printf("@@@ TEST  10: Waiting 5s before spawning clients\n")
+	fmt.Println()
+	time.Sleep(5 * time.Second)
+
+	// Amount to test
+	clients := 5
+
+	// Spawn voters
+	yesVoters := 0
+	for i := 0; i < clients; i++ {
+		vote := rand.Intn(2)
+		name := "nay" + fmt.Sprint(i-yesVoters)
+		if vote == 1 {
+			yesVoters++
+			name = "yay" + fmt.Sprint(yesVoters)
+		}
+		TestUtil_ClientVoteInstance(clientVote{id: fmt.Sprint(i), name: name, Vote: vote})
+	}
+
+	// Wait for results
+	fmt.Println()
+	fmt.Printf("@@@ TEST 11: Waiting for results\n")
+	fmt.Println()
+
+	// Wait for local test server
+	res := localTestServer.WaitForResults()
+
+	// Log how many we expect
+	fmt.Printf("We expect %v yes votes and %v no votes.\n", yesVoters, clients-yesVoters)
+
+	fmt.Println()
+	fmt.Printf("@@@ TEST 11 Got results:\n\t%+v\n", res)
+	fmt.Println()
+
+	// Wait 1s before passing/failing
+	time.Sleep(1 * time.Second)
+
+	// Halt server
+	localTestServer.Halt()
+
+	// Do asserts
+	return res.No == clients-yesVoters && res.Yes == yesVoters
+}
+
+func RunTest12() bool {
+
+	// Secrify X=1 for k=1
+	r1, r2, r3 := SecrifyGf(1, 1)
+
+	// Log shares
+	fmt.Printf("r1: %v r2: %v R3: %v\n", r1, r2, r3)
+
+	// Compute L(1)=y1, L(2)=y2
+	l1 := LagrangeXGf(uint8(1), r1, r2, r3)
+	l2 := LagrangeXGf(uint8(2), r1, r2, r3)
+
+	// Compute slope
+	m := int(l2-l1) / (2 - 1)
+
+	// Go back one on x-axis
+	l0 := int(l1) - m
+
+	// Log l1
+	fmt.Printf("L(1) = %v\n", l1)
+	// Log l2
+	fmt.Printf("L(2) = %v\n", l2)
+
+	// Log l0
+	fmt.Printf("L'(0)= %v\n", l0)
+
+	// Log l0
+	fmt.Printf("L''(0)= %v\n", int(r1)-int(r2-r1)/(2-1))
+
+	// L(0) == 0
+	return l0 == 1
+
+}
+
+func RunTest13() bool {
+
+	// Secrify X=1 for k=1
+	r11, r12, r13 := SecrifyGf(1, 1)
+	r21, r22, r23 := SecrifyGf(1, 1)
+
+	// Log shares
+	fmt.Printf("r11: %v r12: %v R13: %v\n", r11, r12, r13)
+	fmt.Printf("r21: %v r22: %v R23: %v\n", r21, r22, r23)
+
+	// As fields...
+	gfr11, gfr12, gfr13 := Gf_FromByte(r11), Gf_FromByte(r12), Gf_FromByte(r13)
+	gfr21, gfr22, gfr23 := Gf_FromByte(r21), Gf_FromByte(r22), Gf_FromByte(r23)
+
+	// points
+	a := GfPoint{X: Gf_FromByte(1), Y: gfr11.Add(gfr21)}
+	b := GfPoint{X: Gf_FromByte(2), Y: gfr12.Add(gfr22)}
+	c := GfPoint{X: Gf_FromByte(3), Y: gfr13.Add(gfr23)}
+
+	// Compute l0
+	l0 := LagrangeGf(uint8(0), a, b, c).ToByte()
+
+	// Compute l0
+	fmt.Printf("l0 = %v\n", l0)
+
+	// L(0) == 0
+	return l0 == 2
+
 }
 
 func AssertIsTrue(condition bool, msg string) {

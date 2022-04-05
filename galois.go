@@ -1,5 +1,7 @@
 package main
 
+import "fmt"
+
 // https://github.com/sellibitze/secretshare/blob/master/src/gf256.rs
 // Rust -> Go "compilation" - we take no credit for the implementation
 // We have merely translated the Rust code to a Go equivalent
@@ -140,28 +142,33 @@ func (x Gf) Sub(y Gf) Gf {
 
 // Computes x*y in Gf(2^8)
 func (x Gf) Mul(y Gf) Gf {
-	l1 := x.Log()
-	l2 := y.Log()
-	if l1.some && l2.some {
-		return Gf_Exp(byte(uint(l1.val) + uint(l2.val)%uint(255)))
-	} else {
-		return Gf{
-			poly: 0,
+	v1 := x.poly
+	v2 := y.poly
+	if v1 != 0 && v2 != 0 {
+		l1 := x.Log()
+		l2 := y.Log()
+		if l1.some && l2.some {
+			tmp := (uint(l1.val) + uint(l2.val)) % uint(255)
+			return Gf_Exp(byte(tmp))
 		}
 	}
+	fmt.Println("Exiting Mul with 0")
+	return Gf{poly: 0}
 }
 
 // Computes x/y in Gf(2^8)
 func (x Gf) Div(y Gf) Gf {
-	l1 := x.Log()
-	l2 := y.Log()
-	if l1.some && l2.some {
-		return Gf_Exp(byte((uint(l1.val) + uint(255) - uint(l2.val)) % uint(255)))
-	} else {
-		return Gf{
-			poly: 0,
+	v1 := x.poly
+	v2 := y.poly
+	if v1 != 0 && v2 != 0 {
+		l1 := x.Log()
+		l2 := y.Log()
+		if l1.some && l2.some {
+			return Gf_Exp(byte((uint(l1.val) + uint(255) - uint(l2.val)) % uint(255)))
 		}
 	}
+	fmt.Println("Exiting Div with 0")
+	return Gf{poly: 0}
 }
 
 // Computes x^y
