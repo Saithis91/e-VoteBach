@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"math/rand"
 )
 
@@ -28,8 +29,44 @@ func Secrify(x, p, k int) (r1, r2, r3 int) {
 
 }
 
+// Secrifies the vote 'x' into three shares using shamir sharing.
+// Returns r1, r2, r3 values in Gf(2^8)
+// @x: The secret to secrify
+// @k: The threshold to accept leaks
+func SecrifyGf(x, k int) (r1, r2, r3 uint8) {
+
+	secrifyFail := 0
+
+	for {
+
+		// secret to Gf
+		s := Gf_FromByte(uint8(x))
+
+		// Generate random a-values
+		as := make([]uint8, 0)
+		for i := 0; i < k; i++ {
+			ai := uint8(rand.Intn(256))
+			as = append(as, ai)
+		}
+
+		// Compute shares
+		r1 = PolyGf(1, s, as)
+		r2 = PolyGf(2, s, as)
+		r3 = PolyGf(3, s, as)
+
+		// Compute L(0) to verify
+		if Lagrange0Gf(r1, r2, r3) == uint8(x) {
+			return
+		} else {
+			secrifyFail++
+			fmt.Printf("Failed to secrify X on attempt %v.\n", secrifyFail)
+		}
+
+	}
+
+}
+
 // Compute the polynomial f(x)=s+a_1x+a_2x^2+...+a_n+x^n
-// Ensures f(x) is in field of Z_p
 func Poly(x, s, p int, a []int) int {
 	y := s                // f(0) = s
 	for e, v := range a { // for e=exponent(+1), v = a_i
@@ -42,6 +79,8 @@ func Poly(x, s, p int, a []int) int {
 	return y
 }
 
+// Compute the polynomial f(x)=s+a_1x+a_2x^2+...+a_n+x^n
+// Was used when testing
 func Poly2(x, s int, a []int) int {
 	y := s
 	for e, v := range a {
@@ -50,6 +89,19 @@ func Poly2(x, s int, a []int) int {
 		y = y + cx
 	}
 	return y
+}
+
+// Compute the polynomial f(x)=s+a_1x+a_2x^2+...+a_n+x^n
+// Guaranteed to be inside the field Gf(2^8)
+func PolyGf(x uint8, s Gf, a []uint8) uint8 {
+	xg := Gf_FromByte(x)
+	y := s
+	for e, v := range a {
+		xpow := xg.Pow(Gf_FromByte(uint8(e + 1)))
+		cx := Gf_FromByte(v).Mul(xpow)
+		y = y.Add(cx)
+	}
+	return y.ToByte()
 }
 
 // Peforms x^y operation and stays in integer domain.
@@ -86,12 +138,29 @@ func (a PointXSort) Len() int           { return len(a) }
 func (a PointXSort) Less(i, j int) bool { return a[i].X < a[j].X }
 func (a PointXSort) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
+type GfPoint struct {
+	X Gf // X-value in Gf(2^8)
+	Y Gf // Y-value in Gf(2^8)
+}
+
 // Computes L(x) for the set of given points.
 func Lagrange(x int, points ...Point) int {
 	l := 0
 	k := len(points)
 	for j := 0; j < k; j++ {
 		l += points[j].Y * LagrangeBasis(x, j, k, points)
+	}
+	return l
+}
+
+// Computes L(x) for the set of given points
+func LagrangeGf(x uint8, points ...GfPoint) Gf {
+	l := Gf_Zero()
+	k := len(points)
+	x_gf := Gf_FromByte(x)
+	for j := 0; j < k; j++ {
+		basis := LagrangeBasisGf(j, k, x_gf, points)
+		l = l.Add(points[j].Y.Mul(basis))
 	}
 	return l
 }
@@ -106,6 +175,30 @@ func LagrangeBasis(x, j, k int, points []Point) int {
 		}
 	}
 	return l // TODO: Multiplicative inverse of (x_j - points[m].X)
+}
+
+// Computes delta(x) for the set of given points at x w.r.t i
+func LagrangeBasisGf(i, k int, x Gf, points []GfPoint) Gf {
+	l := Gf_One()
+	x_m := points[i].X
+	for j := 0; j < k; j++ {
+		if i != j {
+			x_j := points[j].X
+			delta := x_m.Sub(x_j)
+			if delta.Is_Zero() {
+				panic(fmt.Errorf("division by zero! "))
+			}
+			top := x.Sub(x_j)
+			l = l.Mul(top.Div(delta))
+		}
+	}
+	return l
+}
+
+// Computes L(0) from r1, r2, r3 values
+func Lagrange0Gf(r1, r2, r3 uint8) uint8 {
+	l0 := LagrangeGf(0, GfPoint{Y: Gf_FromByte(r1), X: Gf_FromByte(1)}, GfPoint{Y: Gf_FromByte(r2), X: Gf_FromByte(2)}, GfPoint{Y: Gf_FromByte(r3), X: Gf_FromByte(3)})
+	return l0.ToByte()
 }
 
 // Computes L(0) from the set of r1, r2, r3 values

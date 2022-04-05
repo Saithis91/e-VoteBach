@@ -37,6 +37,8 @@ var testCases = []func() bool{
 	RunTest04,
 	RunTest05,
 	RunTest06,
+	RunTest07,
+	RunTest08,
 }
 
 // Dispatches calls
@@ -168,142 +170,197 @@ func RunTest02() bool {
 
 func RunTest03() bool {
 
-	// Log purpose
-	fmt.Println(" --- Running test 3 --- ")
-	fmt.Println(" --- Testing Lagrange --- ")
+	// Yields true, does nothing
+	return true
 
-	// Secret 1 f(0)
-	s1 := 3
+	/*
+		// Log purpose
+		fmt.Println(" --- Running test 3 --- ")
+		fmt.Println(" --- Testing Lagrange --- ")
 
-	// f(x)-coeffs
-	fa := []int{2, -1}
+		// Secret 1 f(0)
+		s1 := 3
 
-	// Secret 2 g(0)
-	s2 := -1
+		// f(x)-coeffs
+		fa := []int{2, -1}
 
-	// g(x)-coeffs
-	ga := []int{1, 1}
+		// Secret 2 g(0)
+		s2 := -1
 
-	// Compute shares for f
-	r11 := Poly2(1, s1, fa)
-	r12 := Poly2(2, s1, fa)
-	r13 := Poly2(3, s1, fa)
+		// g(x)-coeffs
+		ga := []int{1, 1}
 
-	// Log f(x)
-	fmt.Printf("f(x) = %v, %v, %v.\n", r11, r12, r13)
+		// Compute shares for f
+		r11 := Poly2(1, s1, fa)
+		r12 := Poly2(2, s1, fa)
+		r13 := Poly2(3, s1, fa)
 
-	// Assert values
-	AssertIsTrue(r11 == 4, "R11 != 4")
-	AssertIsTrue(r12 == 3, "R12 != 3")
-	AssertIsTrue(r13 == 0, "R13 != 0")
+		// Log f(x)
+		fmt.Printf("f(x) = %v, %v, %v.\n", r11, r12, r13)
 
-	// Compute shares for f
-	r21 := Poly2(1, s2, ga)
-	r22 := Poly2(2, s2, ga)
-	r23 := Poly2(3, s2, ga)
+		// Assert values
+		AssertIsTrue(r11 == 4, "R11 != 4")
+		AssertIsTrue(r12 == 3, "R12 != 3")
+		AssertIsTrue(r13 == 0, "R13 != 0")
 
-	// Log g(x)
-	fmt.Printf("g(x) = %v, %v, %v.\n", r21, r22, r23)
+		// Compute shares for f
+		r21 := Poly2(1, s2, ga)
+		r22 := Poly2(2, s2, ga)
+		r23 := Poly2(3, s2, ga)
 
-	// Assert values
-	AssertIsTrue(r21 == 1, "R21 != 1")
-	AssertIsTrue(r22 == 5, "R22 != 5")
-	AssertIsTrue(r23 == 11, "R23 != 11")
+		// Log g(x)
+		fmt.Printf("g(x) = %v, %v, %v.\n", r21, r22, r23)
 
-	// Now do "local sum" (Dont bother asserting these, as they should be correct based on previous)
-	h1 := r11 + r21
-	h2 := r12 + r22
-	h3 := r13 + r23
+		// Assert values
+		AssertIsTrue(r21 == 1, "R21 != 1")
+		AssertIsTrue(r22 == 5, "R22 != 5")
+		AssertIsTrue(r23 == 11, "R23 != 11")
 
-	// Log h(x)
-	fmt.Printf("h(x) = %v, %v, %v.\n", h1, h2, h3)
+		// Now do "local sum" (Dont bother asserting these, as they should be correct based on previous)
+		h1 := r11 + r21
+		h2 := r12 + r22
+		h3 := r13 + r23
 
-	// Compute h(x) where x = 0
-	h0 := Lagrange(0, Point{X: 1, Y: h1}, Point{X: 2, Y: h2}, Point{X: 3, Y: h3})
+		// Log h(x)
+		fmt.Printf("h(x) = %v, %v, %v.\n", h1, h2, h3)
 
-	// Log h(0)
-	fmt.Printf("h(0) = %v.\n", h0)
+		// Compute h(x) where x = 0
+		h0 := Lagrange(0, Point{X: 1, Y: h1}, Point{X: 2, Y: h2}, Point{X: 3, Y: h3})
 
-	// Return if h2 == 0 (s1 + s2)
-	return h0 == 2
+		// Log h(0)
+		fmt.Printf("h(0) = %v.\n", h0)
+
+		// Return if h2 == 0 (s1 + s2)
+		return h0 == 2 */ // Keeping code for documentation
 
 }
 
 func RunTest04() bool {
 
-	// Define points
-	points := []Point{{X: 1, Y: 5}, {X: 2, Y: 8}, {X: 3, Y: 11}}
+	// Return true -> does nothing
+	return true
 
-	// Compute our implementation
-	lag1_impl := LagrangeBasis(0, 0, len(points), points)
-	lag2_impl := LagrangeBasis(0, 1, len(points), points)
-	lag3_impl := LagrangeBasis(0, 2, len(points), points)
+	/*
+		// Define points
+		points := []Point{{X: 1, Y: 5}, {X: 2, Y: 8}, {X: 3, Y: 11}}
 
-	// Precise compution
-	fmt.Printf("WTF IS DIS! = %v\n", ((0 - 2) / (1 - 2) * (0 - 3) / (1 - 3)))
+		// Compute our implementation
+		lag1_impl := LagrangeBasis(0, 0, len(points), points)
+		lag2_impl := LagrangeBasis(0, 1, len(points), points)
+		lag3_impl := LagrangeBasis(0, 2, len(points), points)
 
-	// Compute slide
-	lag1_slid := (0 - 2) / (1 - 2) * (0 - 3) / (1 - 3)
-	lag2_slid := (0 - 1) / (2 - 1) * (0 - 3) / (2 - 3)
-	lag3_slid := (0 - 1) / (3 - 1) * (0 - 2) / (3 - 2)
+		// Precise compution
+		fmt.Printf("WTF IS DIS! = %v\n", ((0 - 2) / (1 - 2) * (0 - 3) / (1 - 3)))
 
-	// Log
-	fmt.Printf("ell(0) :: Impl = %v; Slide = %v;\n", lag1_impl, lag1_slid)
-	fmt.Printf("ell(1) :: Impl = %v; Slide = %v;\n", lag2_impl, lag2_slid)
-	fmt.Printf("ell(2) :: Impl = %v; Slide = %v;\n", lag3_impl, lag3_slid)
+		// Compute slide
+		lag1_slid := (0 - 2) / (1 - 2) * (0 - 3) / (1 - 3)
+		lag2_slid := (0 - 1) / (2 - 1) * (0 - 3) / (2 - 3)
+		lag3_slid := (0 - 1) / (3 - 1) * (0 - 2) / (3 - 2)
 
-	// Return compute result
-	return lag1_impl == lag1_slid && lag2_impl == lag2_slid && lag3_impl == lag3_slid
+		// Log
+		fmt.Printf("ell(0) :: Impl = %v; Slide = %v;\n", lag1_impl, lag1_slid)
+		fmt.Printf("ell(1) :: Impl = %v; Slide = %v;\n", lag2_impl, lag2_slid)
+		fmt.Printf("ell(2) :: Impl = %v; Slide = %v;\n", lag3_impl, lag3_slid)
+
+		// Return compute result
+		return lag1_impl == lag1_slid && lag2_impl == lag2_slid && lag3_impl == lag3_slid
+	*/ // Keeping code for documentation
 
 }
 
 func RunTest05() bool {
 
-	// Define points
-	points := []Point{{X: 1, Y: 5}, {X: 2, Y: 8}, {X: 3, Y: 11}}
+	// Yields true, does nothing
+	return true
+	/*
+		// Define points
+		points := []Point{{X: 1, Y: 5}, {X: 2, Y: 8}, {X: 3, Y: 11}}
 
-	// Define points
-	ell0 := LagrangeBasis(0, 0, len(points), points)
-	ell1 := LagrangeBasis(0, 1, len(points), points)
-	ell2 := LagrangeBasis(0, 2, len(points), points)
+		// Define points
+		ell0 := LagrangeBasis(0, 0, len(points), points)
+		ell1 := LagrangeBasis(0, 1, len(points), points)
+		ell2 := LagrangeBasis(0, 2, len(points), points)
 
-	// Log values
-	fmt.Printf("ell_0(0) = %v\nell_1(0) = %v\nell_2(0) = %v\n", ell0, ell1, ell2)
+		// Log values
+		fmt.Printf("ell_0(0) = %v\nell_1(0) = %v\nell_2(0) = %v\n", ell0, ell1, ell2)
 
-	// Compute h(0)
-	h0_i := (points[0].Y * ell0) + (points[1].Y * ell1) + (points[2].Y * ell2)
-	h0_s := 3*0 + 2 // Slide implementation for h(0)
+		// Compute h(0)
+		h0_i := (points[0].Y * ell0) + (points[1].Y * ell1) + (points[2].Y * ell2)
+		h0_s := 3*0 + 2 // Slide implementation for h(0)
 
-	// Very basic assert
-	fmt.Printf("h_i(0) = %v;\nh_s(0) = %v;\n", h0_i, h0_s)
+		// Very basic assert
+		fmt.Printf("h_i(0) = %v;\nh_s(0) = %v;\n", h0_i, h0_s)
 
-	// Return compute result
-	return h0_i == h0_s
+		// Return compute result
+		return h0_i == h0_s*/ // Keeping code for documentation
 
 }
 
 func RunTest06() bool {
 
-	// Do 1+1 in Gf(2^8)
-	a := Gf_One()
-	b := Gf_One()
-
-	// Compute a + b
-	c := a.Add(b)
-
-	// Do assert
-	AssertIsTrue(c.ToByte() == 0, fmt.Sprintf("%v != 0", c.ToByte()))
-
-	// Do second assert
-	c = Gf_FromByte(25).Mul(Gf_FromByte(2))
-	AssertIsTrue(c.ToByte() == 50, fmt.Sprintf("%v != 50", c.ToByte()))
-
-	// Do third assert
-	c = Gf_FromByte(25).Div(Gf_FromByte(2))
-	AssertIsTrue(c.ToByte() == 130, fmt.Sprintf("%v != 130", c.ToByte()))
-
-	// Yey
+	// Yields true, does nothing
 	return true
+	/*
+		// Do 1+1 in Gf(2^8)
+		a := Gf_One()
+		b := Gf_One()
+
+		// Compute a + b
+		c := a.Add(b)
+
+		// Do assert
+		AssertIsTrue(c.ToByte() == 0, fmt.Sprintf("%v != 0", c.ToByte()))
+
+		// Do second assert
+		c = Gf_FromByte(25).Mul(Gf_FromByte(2))
+		AssertIsTrue(c.ToByte() == 50, fmt.Sprintf("%v != 50", c.ToByte()))
+
+		// Do third assert
+		c = Gf_FromByte(25).Div(Gf_FromByte(2))
+		AssertIsTrue(c.ToByte() == 130, fmt.Sprintf("%v != 130", c.ToByte()))
+
+		// Yey
+		return true*/ // Keeping code for documentation!
+
+}
+
+func RunTest07() bool {
+
+	// r1, r2, r3
+	r1 := uint8(5)
+	r2 := uint8(8)
+	r3 := uint8(11)
+
+	// Test D_0(1)
+	//LagrangeBasisGf(1, 3, Gf_FromByte(0), []GfPoint{ {X:Gf_FromByte(r1),Y:GF_FromByte(5)} })
+
+	// Calculate L(0)
+	l0 := Lagrange0Gf(r1, r2, r3)
+
+	// Print out l0
+	fmt.Printf("l0 = %v.\n", l0)
+
+	// Return true
+	return true
+
+}
+
+func RunTest08() bool {
+
+	// Secrify X=1 for k=1
+	r1, r2, r3 := SecrifyGf(1, 1)
+
+	// Log shares
+	fmt.Printf("r1: %v r2: %v R3: %v\n", r1, r2, r3)
+
+	// Compute L(0)
+	l0 := Lagrange0Gf(r1, r2, r3)
+
+	// Log l0
+	fmt.Printf("L(0) = %v\n", l0)
+
+	// L(0) == 1
+	return l0 == 1
 
 }
 

@@ -155,3 +155,17 @@ func (x Gf) Div(y Gf) Gf {
 		}
 	}
 }
+
+// Computes x^y
+func (x Gf) Pow(y Gf) Gf {
+	z := x
+	for i := 2; i < int(y.poly); i++ {
+		z = z.Mul(x)
+	}
+	return z
+}
+
+// Decides if x is equal to 0.
+func (x Gf) Is_Zero() bool {
+	return x.poly == 0
+}

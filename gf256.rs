@@ -141,6 +141,37 @@ impl Div<Gf256> for Gf256 {
 	}
 }
 
+fn lagrange_basis(src: &[(u8, u8)], x: Gf256, i:usize, xi: Gf256) -> Gf256 {
+	let mut lix = Gf256::one();
+	for (j, &(raw_xj, _)) in src.iter().enumerate() {
+		if i != j {
+			let xj = Gf256::from_byte(raw_xj);
+			let delta = xi - xj;
+			assert!(delta.poly !=0, "Duplicate shares");
+			lix = lix * (x - xj) / delta;
+		}
+	}
+	lix
+}
+
+/// evaluates an interpolated polynomial at `raw_x` where
+/// the polynomial is determined using Lagrangian interpolation
+/// based on the given x/y coordinates `src`.
+fn lagrange_interpolate(src: &[(u8, u8)], raw_x: u8) -> u8 {
+	let x = Gf256::from_byte(raw_x);
+	println!("interpolating on {} using points {:?}", raw_x, src);
+	let mut sum = Gf256::zero();
+	for (i, &(raw_xi, raw_yi)) in src.iter().enumerate() {
+		let xi = Gf256::from_byte(raw_xi);
+		let yi = Gf256::from_byte(raw_yi);
+		let lix = lagrange_basis(src, x, i, xi);
+		println!("D_{}(0)= {}", i, lix.to_byte());
+		sum = sum + lix * yi;
+		println!("Sum @ {} = {}", i, sum.to_byte());
+	}
+	sum.to_byte()
+}
+
 fn main() {
 
     // Get one and one
@@ -181,10 +212,15 @@ fn main() {
         }
     }
     println!("1^1={}", 1 ^ 1);*/
-    let _x = Gf256::from_byte(25u8);
-    let _y = Gf256::from_byte(2u8);
-    println!("25*2 = {}", (_x * _y).to_byte());
-    println!("25/2 = {}", (_x / _y).to_byte())
 
+	let points = [(1, 5), (2, 8), (3, 11)];
+	let p = lagrange_interpolate(&points, 0);
+
+	println!("L(0)={}", p);
+
+	let points = [(1, 182), (2, 113), (3, 199)];
+	let p = lagrange_interpolate(&points, 0);
+
+	println!("L(0)={}", p);
 
 }
