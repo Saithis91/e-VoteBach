@@ -172,10 +172,10 @@ func ConnectServer(id, ip, port string) (*net.Conn, *gob.Encoder, *gob.Decoder, 
 func (client *Client) SendVote(vote int) {
 
 	// Get R1, R2
-	r1, r2, r3 := Secrify(vote, client.P, client.K)
+	r1, r2, r3 := SecrifyGf(vote, client.K)
 
 	// To array
-	shares := []int{r1, r2, r3}
+	shares := []uint8{r1, r2, r3}
 
 	// Log
 	fmt.Printf("[%s] My secret is %v, with R1 = %v, R2 = %v, and R3 = %v\n", client.Id, vote, r1, r2, r3)

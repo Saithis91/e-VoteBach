@@ -24,7 +24,7 @@ type Request struct {
 }
 
 func (r Request) ToRMsg() RMessage {
-	return RMessage{Vote: r.Val1}
+	return RMessage{Vote: uint8(r.Val1)}
 }
 
 func (r Request) ToIdMsg() IDMessage {
@@ -40,17 +40,17 @@ func (r Request) ToStrinceSlice() StringSlice {
 }
 
 func (r Request) ToServerJoinMsg() ServerJoinIDMessage {
-	return ServerJoinIDMessage{ID: r.Strs[0], serverID: r.Val1}
+	return ServerJoinIDMessage{ID: r.Strs[0], serverID: uint8(r.Val1)}
 }
 
 // R-Vote Message (Client -> Server)
 type RMessage struct {
-	Vote int
+	Vote uint8
 }
 
 // Converts the RMessage into a request
 func (m RMessage) ToRequest() Request {
-	return Request{RequestType: RNUMBER, Val1: m.Vote}
+	return Request{RequestType: RNUMBER, Val1: int(m.Vote)}
 }
 
 // ID Message
@@ -66,17 +66,17 @@ func (m IDMessage) ToRequest() Request {
 // Server Join Message
 type ServerJoinIDMessage struct {
 	ID       string
-	serverID int
+	serverID uint8
 }
 
 //Converts the ServerJoinIDMessage into a request
 func (sID ServerJoinIDMessage) ToRequest() Request {
-	return Request{RequestType: SERVERJOIN, Strs: []string{sID.ID}, Val1: sID.serverID}
+	return Request{RequestType: SERVERJOIN, Strs: []string{sID.ID}, Val1: int(sID.serverID)}
 }
 
 //Converts the ServerJoinIDMessage into a request
 func (sID ServerJoinIDMessage) ToResponse() Request {
-	return Request{RequestType: SERVERRESPONCE, Strs: []string{sID.ID}, Val1: sID.serverID}
+	return Request{RequestType: SERVERRESPONCE, Strs: []string{sID.ID}, Val1: int(sID.serverID)}
 }
 
 // Result message (Server -> Client)

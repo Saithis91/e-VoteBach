@@ -115,6 +115,14 @@ func Gf_Exp(p byte) Gf {
 	}
 }
 
+func Gf_Sum(entries ...Gf) Gf {
+	sum := Gf_Zero()
+	for _, v := range entries {
+		sum = sum.Add(v)
+	}
+	return sum
+}
+
 // Computes x+y in Gf(2^8)
 func (x Gf) Add(y Gf) Gf {
 	return Gf{

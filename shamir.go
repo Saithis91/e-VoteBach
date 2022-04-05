@@ -143,6 +143,13 @@ type GfPoint struct {
 	Y Gf // Y-value in Gf(2^8)
 }
 
+// Define sort by X for a point slice
+type GfPointXSort []GfPoint
+
+func (a GfPointXSort) Len() int           { return len(a) }
+func (a GfPointXSort) Less(i, j int) bool { return a[i].X.ToByte() < a[j].X.ToByte() }
+func (a GfPointXSort) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+
 // Computes L(x) for the set of given points.
 func Lagrange(x int, points ...Point) int {
 	l := 0

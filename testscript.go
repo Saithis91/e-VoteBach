@@ -39,6 +39,7 @@ var testCases = []func() bool{
 	RunTest06,
 	RunTest07,
 	RunTest08,
+	RunTest09,
 }
 
 // Dispatches calls
@@ -361,6 +362,25 @@ func RunTest08() bool {
 
 	// L(0) == 1
 	return l0 == 1
+
+}
+
+func RunTest09() bool {
+
+	// Secrify X=1 for k=1
+	r1, r2, r3 := SecrifyGf(0, 1)
+
+	// Log shares
+	fmt.Printf("r1: %v r2: %v R3: %v\n", r1, r2, r3)
+
+	// Compute L(0)
+	l0 := Lagrange0Gf(r1, r2, r3)
+
+	// Log l0
+	fmt.Printf("L(0) = %v\n", l0)
+
+	// L(0) == 0
+	return l0 == 0
 
 }
 
