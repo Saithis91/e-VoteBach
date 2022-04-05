@@ -223,7 +223,7 @@ func (client *Client) Shutdown(waitForResults bool) {
 		countChan := make(chan Results, 3)
 
 		// Go wait
-		for k, _ := range client.Servers {
+		for k := range client.Servers {
 			go AwaitResponse(client.Servers[k], client.Decoders[k], countChan)
 		}
 

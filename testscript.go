@@ -40,6 +40,7 @@ var testCases = []func() bool{
 	RunTest07,
 	RunTest08,
 	RunTest09,
+	RunTest10,
 }
 
 // Dispatches calls
@@ -382,6 +383,72 @@ func RunTest09() bool {
 	// L(0) == 0
 	return l0 == 0
 
+}
+
+func RunTest10() bool {
+	// Init rand
+	rand.Seed(1)
+
+	// Log test
+	fmt.Println("--- Running test 10 ---")
+	fmt.Println()
+
+	// Log what we're testing
+	fmt.Println("Starting test-server")
+	fmt.Println()
+	// Create test server
+	localTestServer := CreateNewServer(1, "Main Server", "10000", []string{"11001"}, []string{localIP, localIP}, 15, true)
+	localTestServer.P = 991
+
+	time.Sleep(2 * time.Second)
+	// Spawn server
+	if _, e := TestUtil_SpawnTestProcess("-id", "2", "-mode", "server", "-name", "otherServer", "-port", "10001", "-pport", "11001,11002", "-t", "15", "-s", "1"); e != nil {
+		fmt.Printf("second server failed Error was %v.\n", e)
+		return false
+	}
+
+	time.Sleep(2 * time.Second)
+	// Spawn server
+	if _, e := TestUtil_SpawnTestProcess("-id", "3", "-mode", "server", "-name", "ThirdServer", "-port", "10002", "-pport", "11001,11002", "-t", "15", "-s", "1"); e != nil {
+		fmt.Printf("second server failed Error was %v.\n", e)
+		return false
+	}
+	// Wait 2s
+	fmt.Println()
+	fmt.Printf("@@@ TEST  10: Waiting 5s before spawning clients\n")
+	fmt.Println()
+	time.Sleep(5 * time.Second)
+
+	// Spawn voters
+	TestUtil_ClientVoteInstance(clientVote{id: "1", name: "yay", Vote: 1})
+	TestUtil_ClientVoteInstance(clientVote{id: "2", name: "nay2", Vote: 0})
+	TestUtil_ClientVoteInstance(clientVote{id: "3", name: "nay3", Vote: 0})
+	TestUtil_ClientVoteInstance(clientVote{id: "4", name: "nay4", Vote: 0})
+	TestUtil_ClientVoteInstance(clientVote{id: "5", name: "nay5", Vote: 0})
+	TestUtil_ClientVoteInstance(clientVote{id: "6", name: "nay6", Vote: 0})
+	TestUtil_ClientVoteInstance(clientVote{id: "7", name: "nay7", Vote: 0})
+	TestUtil_ClientVoteInstance(clientVote{id: "8", name: "nay8", Vote: 0})
+
+	// Wait for results
+	fmt.Println()
+	fmt.Printf("@@@ TEST 10: Waiting for results\n")
+	fmt.Println()
+
+	// Wait for local test server
+	res := localTestServer.WaitForResults()
+
+	fmt.Println()
+	fmt.Printf("@@@ TEST 10: Got results:\n\t%+v\n", res)
+	fmt.Println()
+
+	// Wait 1s before passing/failing
+	time.Sleep(1 * time.Second)
+
+	// Halt server
+	localTestServer.Halt()
+
+	// Do asserts
+	return res.No == 7 && res.Yes == 1
 }
 
 func AssertIsTrue(condition bool, msg string) {
