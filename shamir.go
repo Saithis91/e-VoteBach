@@ -67,7 +67,7 @@ func SecrifyGf(x, k int) (r1, r2, r3 uint8) {
 }
 
 // Compute the polynomial f(x)=s+a_1x+a_2x^2+...+a_n+x^n
-func Poly(x, s, p int, a []int) int {
+/*func Poly(x, s, p int, a []int) int {
 	y := s                // f(0) = s
 	for e, v := range a { // for e=exponent(+1), v = a_i
 		xpow := IMod(IPow(x, e+1), p) // x**(e+1) % p
@@ -76,6 +76,17 @@ func Poly(x, s, p int, a []int) int {
 	}
 	// "overuse" of mod p is based on comments in last paragraph of
 	// https://medium.com/partisia-blockchain/mpc-techniques-series-part-3-secret-sharing-shamir-style-f2a952fa7828
+	return y
+}*/
+
+func Poly(x, s, p int, a []int) int {
+	y := s
+	for e, v := range a {
+		xpow := IPow(x, e+1)
+		cx := v * xpow
+		y += cx
+		y %= p
+	}
 	return y
 }
 
@@ -170,7 +181,7 @@ func LagrangeGf(x uint8, points ...GfPoint) Gf {
 		t := points[j].Y.Mul(LagrangeBasisGf(j, k, x_gf, points))
 		ts = append(ts, t)
 		//l = l.Add(t)
-		fmt.Printf("t=%v\n", t)
+		//fmt.Printf("t=%v\n", t)
 	}
 	l := Gf_Sum(ts...)
 	return l
@@ -220,4 +231,103 @@ func Lagrange0Gf(r1, r2, r3 uint8) uint8 {
 // Computes L(0) from the set of r1, r2, r3 values
 func Lagrange0(r1, r2, r3 int) int {
 	return Lagrange(0, Point{X: 1, Y: r1}, Point{X: 2, Y: r2}, Point{X: 3, Y: r3})
+}
+
+// https://en.wikipedia.org/wiki/Shamir%27s_Secret_Sharing
+// Python translation
+
+// Finds greatest common divisor based on  Euclidean algorithm
+func GCD(a, b int) (int, int) {
+	x := 0
+	lx := 1
+	y := 1
+	ly := 0
+	for b != 0 {
+		q := a / b // floor division is default behaviour in Golang
+		a, b = b, pmod(a, b)
+		x, lx = lx-q*x, x
+		y, ly = ly-q*y, y
+	}
+	//fmt.Printf("LX,LY=%v,%v\n", lx, ly)
+	return lx, ly
+}
+
+// Computes n/d % p in the field of integers
+func DivMod(n, d, p int) int {
+	inv, _ := GCD(d, p)
+	return n * inv
+}
+
+// Sums integers
+func SumInts(vals []int) int {
+	i := 1
+	for _, v := range vals {
+		i *= v
+	}
+	return i
+}
+
+// Takes the difference between a and each element in b
+func DiffInts(a int, b []int) []int {
+	c := make([]int, len(b))
+	for i := 0; i < len(b); i++ {
+		c[i] = a - b[i]
+	}
+	return c
+}
+
+// Sums all values in vals
+func SumInt(vals []int) int {
+	i := 1
+	for _, v := range vals {
+		i *= v
+	}
+	return i
+}
+
+// Positive integer mod operation (Thanks reddit)
+func pmod(x, d int) int {
+	x = x % d
+	if x >= 0 {
+		return x
+	}
+	if d < 0 {
+		return x - d
+	}
+	return x + d
+}
+
+// Computes numerator
+func SumNum(nums, dens []int, p, d int, points []Point) int {
+	k := len(nums)
+	s := 0
+	for i := 0; i < k; i++ {
+		n := nums[i] * d * points[i].Y
+		n = pmod(n, p)
+		v := DivMod(n, dens[i], p)
+		//fmt.Printf("v = %v\n", v)
+		s += v
+	}
+	//fmt.Printf("s = %v\n", s)
+	return s
+}
+
+// Computes L(x) in field p given points p
+func LagrangeXP(x, p int, points []Point) int {
+	k := len(points)
+	nums := make([]int, 3)
+	dens := make([]int, 3)
+	for i := 0; i < k; i++ {
+		nums[i] = 1
+		dens[i] = 1
+		for j := 0; j < k; j++ {
+			if i != j {
+				nums[i] *= x - points[j].X
+				dens[i] *= points[i].X - points[j].X
+			}
+		}
+	}
+	den := SumInts(dens)
+	num := SumNum(nums, dens, p, den, points)
+	return pmod(DivMod(num, den, p), p)
 }

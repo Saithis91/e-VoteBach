@@ -21,7 +21,7 @@ type Voter struct {
 	Id string
 
 	// The secret share
-	RVal uint8
+	RVal int
 
 	// Gob encoder and deocer
 	Encoder *gob.Encoder
@@ -86,10 +86,10 @@ type Server struct {
 	Tally chan Results
 
 	// Self R-value sum
-	SelfRSum Gf
+	SelfRSum int
 
 	// Channel for all points (alpha_i, r_i)
-	RPoints chan GfPoint
+	RPoints chan Point
 
 	// The P value
 	P int
@@ -283,7 +283,7 @@ func (server *Server) HandleServerPartnerConnect(conn net.Conn, encoder gob.Enco
 			/*if !server.MainServer {
 				server.EndVotePeriod()
 			}*/
-			server.RPoints <- GfPoint{X: Gf_FromByte(Pserver.ServerID), Y: Gf_FromByte(rm.Vote)}
+			server.RPoints <- Point{X: int(Pserver.ServerID), Y: rm.Vote}
 			if !server.didSum {
 				server.EndVotePeriod()
 				server.didSum = true
@@ -374,7 +374,7 @@ func (server *Server) ConnectToServer(ip, port string) bool {
 
 }
 
-func (server *Server) Initialise(serverID int, id, selfIP string, partnerIP []string, listenPort string, partnerPort []string, waitTime int, mainServer bool) {
+func (server *Server) Initialise(serverID int, id, selfIP string, partnerIP []string, listenPort string, partnerPort []string, waitTime int, mainServer bool, prime int) {
 
 	// Init vals
 	server.mutex = &sync.Mutex{}
@@ -386,10 +386,11 @@ func (server *Server) Initialise(serverID int, id, selfIP string, partnerIP []st
 	server.PartnerConns = ServerConnectionMap{}
 	server.VoteTime = waitTime
 	server.Tally = make(chan Results, 1)
-	server.RPoints = make(chan GfPoint, 3)
+	server.RPoints = make(chan Point, 3)
 	server.MainServer = mainServer
 	server.serverThresshold = 2
 	server.didSum = false
+	server.P = prime
 
 	// Log what we're doing
 	fmt.Printf("[%s][server Startup] I am main: %v\n", id, mainServer)
@@ -476,11 +477,11 @@ func (server *Server) EndVotePeriod() {
 	fmt.Printf("[%s]: clients %s\n", server.ID, server.getClients(server.Clientsconnections))
 
 	// Tally up R-values
-	server.SelfRSum = Gf_Zero()
+	server.SelfRSum = 0
 	for _, v := range server.Clientsconnections {
 		if _, exists := server.VoterIntersection[v.Id]; exists {
 			fmt.Printf("[%s] Counting R-vote of %s\n", server.ID, v.Id)
-			server.SelfRSum = server.SelfRSum.Add(Gf_FromByte(v.RVal))
+			server.SelfRSum = server.SelfRSum + v.RVal
 		}
 	}
 
@@ -488,11 +489,11 @@ func (server *Server) EndVotePeriod() {
 	fmt.Printf("[%s] Voting period ended. Got R-value of %v\n", server.ID, server.SelfRSum)
 
 	// Put our point into self R-point
-	server.RPoints <- GfPoint{X: Gf_FromByte(server.ServerID), Y: server.SelfRSum}
+	server.RPoints <- Point{X: int(server.ServerID), Y: server.SelfRSum}
 
 	// Send new r-value to partner
 	for _, partner := range server.PartnerConns {
-		e := partner.Encoder.Encode(RMessage{Vote: server.SelfRSum.ToByte()}.ToRequest())
+		e := partner.Encoder.Encode(RMessage{Vote: server.SelfRSum}.ToRequest())
 		if e != nil {
 			fmt.Printf("[%s] Failed to send accumulated R-value to partner, %e\n", server.ID, e)
 		} else {
@@ -510,30 +511,30 @@ func (server *Server) DoTally() {
 	c := <-server.RPoints
 
 	// Define vars
-	var yes_vote, no_vote uint8
+	var yes_vote, no_vote int
 
 	// Sanity check -> any votes?
 	//if Gf_Sum(a.Y, b.Y, c.Y).ToByte() > 0 {
 
 	// Define  array
-	points := []GfPoint{a, b, c}
-	sort.Sort(GfPointXSort(points))
+	points := []Point{a, b, c}
+	sort.Sort(PointXSort(points))
 
 	// Log points
 	fmt.Printf("[%s] My points for lagrange interpolation is: %v.\n", server.ID, points)
 
 	// Get (yes) votes
-	yes_vote = LagrangeGf(uint8(0), points...).ToByte()
+	yes_vote = LagrangeXP(0, server.P, points)
 
 	// Get nays
-	no_vote = uint8(len(server.VoterIntersection)) - yes_vote
+	no_vote = len(server.VoterIntersection) - yes_vote
 
 	//}
 
 	// Log in struct
 	tally := Results{
-		Yes: int(yes_vote),
-		No:  int(no_vote),
+		Yes: yes_vote,
+		No:  no_vote,
 	}
 
 	// Enter into channel

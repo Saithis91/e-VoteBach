@@ -44,6 +44,8 @@ var testCases = []func() bool{
 	RunTest11,
 	RunTest12,
 	RunTest13,
+	RunTest14,
+	RunTest15,
 }
 
 // Dispatches calls
@@ -91,8 +93,7 @@ func RunTest01() bool {
 	fmt.Println()
 
 	// Create test server
-	localTestServer := CreateNewServer(1, "Main Server", "10000", []string{"11001"}, []string{localIP, localIP}, 15, true)
-	localTestServer.P = 991
+	localTestServer := CreateNewServer(1, "Main Server", "10000", []string{"11001"}, []string{localIP, localIP}, 15, true, 1997)
 
 	time.Sleep(2 * time.Second)
 	// Spawn server
@@ -118,15 +119,14 @@ func RunTest02() bool {
 	rand.Seed(1)
 
 	// Log test
-	fmt.Println("--- Running test 6 ---")
+	fmt.Println("--- Running test 2 ---")
 	fmt.Println()
 
 	// Log what we're testing
 	fmt.Println("Starting test-server")
 	fmt.Println()
 	// Create test server
-	localTestServer := CreateNewServer(1, "Main Server", "10000", []string{"11001"}, []string{localIP, localIP}, 15, true)
-	localTestServer.P = 991
+	localTestServer := CreateNewServer(1, "Main Server", "10000", []string{"11001"}, []string{localIP, localIP}, 15, true, 1997)
 
 	time.Sleep(2 * time.Second)
 	// Spawn server
@@ -400,8 +400,7 @@ func RunTest10() bool {
 	fmt.Println("Starting test-server")
 	fmt.Println()
 	// Create test server
-	localTestServer := CreateNewServer(1, "Main Server", "10000", []string{"11001"}, []string{localIP, localIP}, 15, true)
-	localTestServer.P = 991
+	localTestServer := CreateNewServer(1, "Main Server", "10000", []string{"11001"}, []string{localIP, localIP}, 15, true, 1997)
 
 	time.Sleep(2 * time.Second)
 	// Spawn server
@@ -466,8 +465,7 @@ func RunTest11() bool {
 	fmt.Println("Starting test-server")
 	fmt.Println()
 	// Create test server
-	localTestServer := CreateNewServer(1, "Main Server", "10000", []string{"11001"}, []string{localIP, localIP}, 30, true)
-	localTestServer.P = 991
+	localTestServer := CreateNewServer(1, "Main Server", "10000", []string{"11001"}, []string{localIP, localIP}, 30, true, 1997)
 
 	time.Sleep(2 * time.Second)
 	// Spawn server
@@ -489,7 +487,7 @@ func RunTest11() bool {
 	time.Sleep(5 * time.Second)
 
 	// Amount to test
-	clients := 5
+	clients := 50 + rand.Intn(587)
 
 	// Spawn voters
 	yesVoters := 0
@@ -588,6 +586,57 @@ func RunTest13() bool {
 	fmt.Printf("l0 = %v\n", l0)
 
 	// L(0) == 0
+	return l0 == 2
+
+}
+
+func RunTest14() bool {
+
+	// Chosen prime is best prime
+	p := 991
+
+	// Secrify X=1 for k=1
+	r11, r12, r13 := Secrify(1, p, 1)
+	//r11 := 262
+	//r12 := 523
+	//r13 := 784
+	//r21, r22, r23 := Secrify(1, p, 1)
+
+	// Log shares
+	fmt.Printf("r11: %v r12: %v R13: %v\n", r11, r12, r13)
+	//fmt.Printf("r21: %v r22: %v R23: %v\n", r21, r22, r23)
+
+	// Compute l0
+	l0 := LagrangeXP(0, p, []Point{{X: 1, Y: r11}, {X: 2, Y: r12}, {X: 3, Y: r13}})
+
+	// Compute l0
+	fmt.Printf("l0 = %v\n", l0)
+
+	// L(0) == 1
+	return l0 == 1
+
+}
+
+func RunTest15() bool {
+
+	// Chosen prime is best prime
+	p := 991
+
+	// Secrify X=1 for k=1
+	r11, r12, r13 := Secrify(1, p, 1)
+	r21, r22, r23 := Secrify(1, p, 1)
+
+	// Log shares
+	fmt.Printf("r11: %v r12: %v R13: %v\n", r11, r12, r13)
+	fmt.Printf("r21: %v r22: %v R23: %v\n", r21, r22, r23)
+
+	// Compute l0
+	l0 := LagrangeXP(0, p, []Point{{X: 1, Y: r11 + r21}, {X: 2, Y: r12 + r22}, {X: 3, Y: r13 + r23}})
+
+	// Compute l0
+	fmt.Printf("l0 = %v\n", l0)
+
+	// L(0) == 2
 	return l0 == 2
 
 }

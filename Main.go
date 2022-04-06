@@ -43,8 +43,7 @@ func main() {
 
 	switch mode {
 	case "server":
-		server := CreateNewServer(id, name, portlist, strings.Split(partnerPort, ","), strings.Split(partnerIP, ","), voteperiod, mainServer)
-		server.P = p
+		server := CreateNewServer(id, name, portlist, strings.Split(partnerPort, ","), strings.Split(partnerIP, ","), voteperiod, mainServer, p)
 		server.WaitForResults()
 	case "client":
 		if vote < 0 || vote > 1 {
@@ -79,8 +78,8 @@ func CreateNewClient(id, serverIP, serverPort string, P, K int, bad bool) *Clien
 
 }
 
-func CreateNewServer(id int, name, listenPort string, parnterPort []string, partnerIP []string, waitTime int, mainServer bool) *Server {
+func CreateNewServer(id int, name, listenPort string, parnterPort []string, partnerIP []string, waitTime int, mainServer bool, prime int) *Server {
 	server := new(Server)
-	server.Initialise(id, name, ip, partnerIP, listenPort, parnterPort, waitTime, mainServer)
+	server.Initialise(id, name, ip, partnerIP, listenPort, parnterPort, waitTime, mainServer, prime)
 	return server
 }

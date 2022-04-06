@@ -24,7 +24,7 @@ type Request struct {
 }
 
 func (r Request) ToRMsg() RMessage {
-	return RMessage{Vote: uint8(r.Val1)}
+	return RMessage{Vote: r.Val1}
 }
 
 func (r Request) ToIdMsg() IDMessage {
@@ -45,12 +45,12 @@ func (r Request) ToServerJoinMsg() ServerJoinIDMessage {
 
 // R-Vote Message (Client -> Server)
 type RMessage struct {
-	Vote uint8
+	Vote int
 }
 
 // Converts the RMessage into a request
 func (m RMessage) ToRequest() Request {
-	return Request{RequestType: RNUMBER, Val1: int(m.Vote)}
+	return Request{RequestType: RNUMBER, Val1: m.Vote}
 }
 
 // ID Message
