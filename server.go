@@ -51,6 +51,10 @@ type PartnerServer struct {
 type ConnectionMap map[string]*Voter
 type ServerConnectionMap map[string]*PartnerServer
 
+// Function pointers for variability points
+type RSumPtr func(*Server) int
+type IntersectPtr func(*Server, []string) []string
+
 // Struct for server instance
 type Server struct {
 
@@ -106,6 +110,10 @@ type Server struct {
 
 	//Summed the Votes
 	didSum bool
+
+	//Variable points
+	SumCalculation RSumPtr
+	IntersectFunc  IntersectPtr
 }
 
 func (server *Server) InitClientSocket() {
@@ -294,13 +302,7 @@ func (server *Server) HandleServerPartnerConnect(conn net.Conn, encoder gob.Enco
 			server.mutex.Unlock()
 		case CLIENTLIST:
 			server.mutex.Lock()
-			checklist := CheckmapFromStringSlice(newRequest.Strs)
-			common := make([]string, 0)
-			for _, v := range server.Clientsconnections {
-				if _, exists := checklist[v.Id]; exists {
-					common = append(common, v.Id)
-				}
-			}
+			common := server.IntersectFunc(server, newRequest.Strs)
 			Pserver.commonClientList = true
 			server.VoterIntersection = CheckmapFromStringSlice(common)
 			if server.MainServer {
@@ -391,6 +393,8 @@ func (server *Server) Initialise(serverID int, id, selfIP string, partnerIP []st
 	server.serverThresshold = 2
 	server.didSum = false
 	server.P = prime
+	server.SumCalculation = HonestRSum
+	server.IntersectFunc = HonestIntersection
 
 	// Log what we're doing
 	fmt.Printf("[%s][server Startup] I am main: %v\n", id, mainServer)
@@ -476,14 +480,8 @@ func (server *Server) EndVotePeriod() {
 
 	fmt.Printf("[%s]: clients %s\n", server.ID, server.getClients(server.Clientsconnections))
 
-	// Tally up R-values
-	server.SelfRSum = 0
-	for _, v := range server.Clientsconnections {
-		if _, exists := server.VoterIntersection[v.Id]; exists {
-			fmt.Printf("[%s] Counting R-vote of %s\n", server.ID, v.Id)
-			server.SelfRSum = server.SelfRSum + v.RVal
-		}
-	}
+	// Calculate R sum using specified sum function (Variability point)
+	server.SelfRSum = server.CalculateSum(server.SumCalculation)
 
 	// Log exit vote period
 	fmt.Printf("[%s] Voting period ended. Got R-value of %v\n", server.ID, server.SelfRSum)
@@ -513,9 +511,6 @@ func (server *Server) DoTally() {
 	// Define vars
 	var yes_vote, no_vote int
 
-	// Sanity check -> any votes?
-	//if Gf_Sum(a.Y, b.Y, c.Y).ToByte() > 0 {
-
 	// Define  array
 	points := []Point{a, b, c}
 	sort.Sort(PointXSort(points))
@@ -523,18 +518,54 @@ func (server *Server) DoTally() {
 	// Log points
 	fmt.Printf("[%s] My points for lagrange interpolation is: %v.\n", server.ID, points)
 
-	// Get (yes) votes
-	yes_vote = LagrangeXP(0, server.P, points)
+	// Pick alpha points given our server ID
+	var a1, a2, a3 int
+	if server.ServerID == 1 {
+		a1 = 0
+		a2 = 1
+		a3 = 2
+	} else if server.ServerID == 2 {
+		a1 = 1
+		a2 = 0
+		a3 = 2
+	} else {
+		a1 = 2
+		a2 = 0
+		a3 = 1
+	}
 
-	// Get nays
-	no_vote = len(server.VoterIntersection) - yes_vote
+	// Define tally object
+	var tally Results
 
-	//}
+	// Define set of sample points
+	sample_set := []Point{points[a1], points[a2]}
 
-	// Log in struct
-	tally := Results{
-		Yes: yes_vote,
-		No:  no_vote,
+	// Try compute other point, given selection
+	if LagrangeXP(a3+1, server.P, sample_set) != points[a3].Y {
+		fmt.Printf("[%s] Error - Point %v is not a point on polynomium\n", server.ID, points[a3])
+
+		// Log in struct
+		tally = Results{
+			Yes:   0,
+			No:    0,
+			Error: true,
+		}
+
+	} else {
+
+		// Get (yes) votes
+		yes_vote = LagrangeXP(0, server.P, sample_set)
+
+		// Get nays
+		no_vote = len(server.VoterIntersection) - yes_vote
+
+		// Log in struct
+		tally = Results{
+			Yes:   yes_vote,
+			No:    no_vote,
+			Error: false,
+		}
+
 	}
 
 	// Enter into channel
