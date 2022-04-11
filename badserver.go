@@ -82,7 +82,7 @@ func CorruptIntersection(server *Server, input []string) []string {
 	size := rand.Intn(len(common))
 	fmt.Printf("[BadServer] increased the ClientList by %v\n", size)
 	for i := 0; i < size; i++ {
-		common = append(common, fmt.Sprint("Bogus%v", i))
+		common = append(common, fmt.Sprintf("Bogus%v", i))
 	}
 	return common
 
