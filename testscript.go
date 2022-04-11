@@ -38,6 +38,7 @@ var testCases = []func() bool{
 	RunTest05,
 	RunTest06,
 	RunTest07,
+	RunTest08,
 }
 
 // Dispatches calls
@@ -416,6 +417,23 @@ func RunTest07() bool {
 
 	// Do asserts
 	return res.Error
+}
+
+func RunTest08() bool {
+
+	// Init rand
+	rand.Seed(1)
+
+	// Define ls
+	ls := []int{0, 1, 2}
+	a1, tmp := Pop(ls, 0)  // a1 = 0
+	a2, tmp := Pop(tmp, 0) // a2 = 1
+	a3, _ := Pop(tmp, 0)   // a3 = 2
+
+	fmt.Printf("a1=%v;a2=%v;a3=%v.\n", a1, a2, a3)
+
+	// Do asserts
+	return a1 == 0 && a2 == 1 && a3 == 2
 }
 
 func AssertIsTrue(condition bool, msg string) {

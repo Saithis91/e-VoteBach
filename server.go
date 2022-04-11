@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/rand"
 	"net"
 	"sort"
 	"sync"
@@ -501,6 +502,18 @@ func (server *Server) EndVotePeriod() {
 
 }
 
+func Pop(ints []int, i int) (int, []int) {
+	if len(ints) == 1 {
+		return ints[0], []int{}
+	}
+	j := i
+	if i == -1 {
+		j = rand.Intn(len(ints))
+	}
+	rval := ints[j] // We must capture return value before returning (Go evaluates multiple returns from right to left...)
+	return rval, append(ints[:j], ints[j+1:]...)
+}
+
 func (server *Server) DoTally() {
 
 	// Grab points
@@ -519,20 +532,9 @@ func (server *Server) DoTally() {
 	fmt.Printf("[%s] My points for lagrange interpolation is: %v.\n", server.ID, points)
 
 	// Pick alpha points given our server ID
-	var a1, a2, a3 int
-	if server.ServerID == 1 {
-		a1 = 0
-		a2 = 1
-		a3 = 2
-	} else if server.ServerID == 2 {
-		a1 = 1
-		a2 = 0
-		a3 = 2
-	} else {
-		a1 = 2
-		a2 = 0
-		a3 = 1
-	}
+	a1, tmp := Pop([]int{0, 1, 2}, int(server.ServerID)-1)
+	a2, tmp := Pop(tmp, -1)
+	a3, _ := Pop(tmp, -1)
 
 	// Define tally object
 	var tally Results
