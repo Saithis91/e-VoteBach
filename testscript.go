@@ -421,6 +421,11 @@ func RunTest07() bool {
 
 func RunTest08() bool {
 
+	// Log test
+	fmt.Println("--- Running test 8 ---")
+	fmt.Println("---  Verifies Pop  ---")
+	fmt.Println()
+
 	// Init rand
 	rand.Seed(1)
 

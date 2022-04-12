@@ -482,7 +482,7 @@ func (server *Server) EndVotePeriod() {
 	fmt.Printf("[%s]: clients %s\n", server.ID, server.getClients(server.Clientsconnections))
 
 	// Calculate R sum using specified sum function (Variability point)
-	server.SelfRSum = server.CalculateSum(server.SumCalculation)
+	server.SelfRSum = server.SumCalculation(server)
 
 	// Log exit vote period
 	fmt.Printf("[%s] Voting period ended. Got R-value of %v\n", server.ID, server.SelfRSum)
