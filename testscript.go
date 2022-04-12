@@ -39,6 +39,7 @@ var testCases = []func() bool{
 	RunTest06,
 	RunTest07,
 	RunTest08,
+	RunTest09,
 }
 
 // Dispatches calls
@@ -320,7 +321,7 @@ func RunTest05() bool {
 	fmt.Printf("r11: %v r12: %v R13: %v\n", r11, r12, r13)
 
 	// Compute l0
-	l0 := LagrangeXP(0, p, []Point{{X: 1, Y: r11}, {X: 2, Y: r12}, {X: 3, Y: r13}})
+	l0 := Lagrange(0, p, []Point{{X: 1, Y: r11}, {X: 2, Y: r12}, {X: 3, Y: r13}})
 
 	// Compute l0
 	fmt.Printf("l0 = %v\n", l0)
@@ -349,7 +350,7 @@ func RunTest06() bool {
 	fmt.Printf("r21: %v r22: %v R23: %v\n", r21, r22, r23)
 
 	// Compute l0
-	l0 := LagrangeXP(0, p, []Point{{X: 1, Y: r11 + r21}, {X: 2, Y: r12 + r22}, {X: 3, Y: r13 + r23}})
+	l0 := Lagrange(0, p, []Point{{X: 1, Y: r11 + r21}, {X: 2, Y: r12 + r22}, {X: 3, Y: r13 + r23}})
 
 	// Compute l0
 	fmt.Printf("l0 = %v\n", l0)
@@ -439,6 +440,66 @@ func RunTest08() bool {
 
 	// Do asserts
 	return a1 == 0 && a2 == 1 && a3 == 2
+}
+
+func RunTest09() bool {
+
+	// Init rand
+	rand.Seed(1)
+
+	// Log test
+	fmt.Println("--- Running test 9 ---")
+	fmt.Println()
+
+	// Log what we're testing
+	fmt.Println("Starting test-server")
+	fmt.Println()
+	// Create test server
+	localTestServer := CreateNewServer(1, "Main Server", "10000", []string{"11001"}, []string{localIP, localIP}, 15, true, 1997)
+
+	time.Sleep(2 * time.Second)
+	// Spawn server
+	if _, e := TestUtil_SpawnTestProcess("-id", "2", "-mode", "server", "-name", "otherServer", "-port", "10001", "-pport", "11001,11002", "-t", "15", "-s", "1"); e != nil {
+		fmt.Printf("second server failed Error was %v.\n", e)
+		return false
+	}
+
+	time.Sleep(2 * time.Second)
+	// Spawn server
+	if _, e := TestUtil_SpawnTestProcess("-id", "3", "-mode", "server", "-name", "BadServer", "-port", "10002", "-pport", "11001,11002", "-t", "15", "-s", "2", "-b", "0"); e != nil {
+		fmt.Printf("second server failed Error was %v.\n", e)
+		return false
+	}
+	// Wait 2s
+	fmt.Println()
+	fmt.Printf("@@@ TEST  9: Waiting 5s before spawning clients\n")
+	fmt.Println()
+	time.Sleep(5 * time.Second)
+
+	// Spawn voters
+	TestUtil_ClientVoteInstance(clientVote{id: "1", name: "yay", Vote: 1, DoSeed: true, Seed: 1})
+	TestUtil_ClientVoteInstance(clientVote{id: "2", name: "nay", Vote: 0, DoSeed: true, Seed: 1})
+
+	// Wait for results
+	fmt.Println()
+	fmt.Printf("@@@ TEST 9: Waiting for results\n")
+	fmt.Println()
+
+	// Wait for local test server
+	res := localTestServer.WaitForResults()
+
+	fmt.Println()
+	fmt.Printf("@@@ TEST 9: Got results:\n\t%+v\n", res)
+	fmt.Println()
+
+	// Wait 1s before passing/failing
+	time.Sleep(1 * time.Second)
+
+	// Halt server
+	localTestServer.Halt()
+
+	// Do asserts
+	return res.Error
 }
 
 func AssertIsTrue(condition bool, msg string) {

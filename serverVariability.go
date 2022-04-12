@@ -61,27 +61,29 @@ func HonestIntersection(server *Server, input []string) []string {
 // Corrupt behaviour
 func CorruptIntersection(server *Server, input []string) []string {
 
-	mode := rand.Intn(4)
+	mode := rand.Intn(3)
 	if mode == 0 {
-		fmt.Println("[BadServer] returned Orginal ClientList")
+		fmt.Println("[BadServer] Returned the others servers clientlist raw")
 		return input
-	} else if mode == 2 {
+	} else if mode == 1 {
 		fmt.Println("[BadServer] Returned an empty List")
 		return make([]string, 0)
-	} else if mode == 3 {
+	} else if mode == 2 {
 		common := HonestIntersection(server, input)
-		size := rand.Intn(len(common))
+		size := 1 //rand.Intn(len(common))
 		fmt.Printf("[BadServer] reduced the ClientList by %v\n", size)
 		common = common[:size]
+		fmt.Printf("[BadServer] reduced the ClientList by %v to %v\n", size, common)
 		return common
 	}
 
 	common := HonestIntersection(server, input)
-	size := rand.Intn(len(common))
-	fmt.Printf("[BadServer] increased the ClientList by %v\n", size)
-	for i := 0; i < size; i++ {
-		common = append(common, fmt.Sprintf("Bogus%v", i))
+	if len(common) > 0 {
+		size := rand.Intn(len(common))
+		fmt.Printf("[BadServer] increased the ClientList by %v to %v\n", size, common)
+		for i := 0; i < size; i++ {
+			common = append(common, fmt.Sprintf("Bogus%v", i))
+		}
 	}
 	return common
-
 }

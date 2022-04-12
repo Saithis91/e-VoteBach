@@ -306,19 +306,29 @@ func (server *Server) HandleServerPartnerConnect(conn net.Conn, encoder gob.Enco
 			common := server.IntersectFunc(server, newRequest.Strs)
 			Pserver.commonClientList = true
 			server.VoterIntersection = CheckmapFromStringSlice(common)
-			if server.MainServer {
-				flag := true
-				for _, p := range server.PartnerConns {
-					if !p.commonClientList {
-						flag = false
-					}
+
+			flag := true
+			for _, p := range server.PartnerConns {
+				if !p.commonClientList {
+					flag = false
 				}
-				if flag {
-					// goto next step in process
-					if !server.didSum {
-						server.EndVotePeriod()
-						server.didSum = true
-					}
+			}
+			//Client list across 2 servers wasn't the same
+			if !flag {
+				//Tell other servers to abort
+				server.sendABORT("Non common clientList.")
+				// Inform clients of an error occured
+				tally := Results{
+					Yes:   0,
+					No:    0,
+					Error: true,
+				}
+				server.Tally <- tally
+			} else if server.MainServer {
+				// goto next step in process
+				if !server.didSum {
+					server.EndVotePeriod()
+					server.didSum = true
 				}
 			} else {
 				// Send common to main
@@ -342,6 +352,14 @@ func (server *Server) HandleServerPartnerConnect(conn net.Conn, encoder gob.Enco
 			}
 			server.PartnerConns[sID.ID] = &Pserver
 			server.mutex.Unlock()
+		case ABORT:
+			// Inform clients of an error occured
+			tally := Results{
+				Yes:   0,
+				No:    0,
+				Error: true,
+			}
+			server.Tally <- tally
 		}
 
 	}
@@ -435,7 +453,7 @@ func (server *Server) WaitForResults() Results {
 	resultReq := results.ToRequest()
 
 	// Log
-	fmt.Printf("[%s] Tally: %v yes vote(s), %v no vote(s), %v total vote(s).\n", server.ID, results.Yes, results.No, results.Yes+results.No)
+	fmt.Printf("[%s] Tally: %v yes vote(s), %v no vote(s), %v total vote(s), Error detected %v.\n", server.ID, results.Yes, results.No, results.Yes+results.No, results.Error)
 
 	// Inform connected clients
 	for ip, client := range server.Clientsconnections {
@@ -543,7 +561,7 @@ func (server *Server) DoTally() {
 	sample_set := []Point{points[a1], points[a2]}
 
 	// Try compute other point, given selection
-	if LagrangeXP(a3+1, server.P, sample_set) != points[a3].Y {
+	if Lagrange(a3+1, server.P, sample_set) != points[a3].Y {
 		fmt.Printf("[%s] Error - Point %v is not a point on polynomium\n", server.ID, points[a3])
 
 		// Log in struct
@@ -556,7 +574,7 @@ func (server *Server) DoTally() {
 	} else {
 
 		// Get (yes) votes
-		yes_vote = LagrangeXP(0, server.P, sample_set)
+		yes_vote = Lagrange(0, server.P, sample_set)
 
 		// Get nays
 		no_vote = len(server.VoterIntersection) - yes_vote
@@ -597,6 +615,15 @@ func (server *Server) sendClients(input []string) { //RMessage{Vote: server.Self
 		e := partner.Encoder.Encode(StringSlice{slice: input}.ToRequest())
 		if e != nil {
 			fmt.Printf("[%s]  Sending clients %e to %s\n", server.ID, e, partner.Id)
+		}
+	}
+}
+
+func (server *Server) sendABORT(reason string) {
+	for _, partner := range server.PartnerConns {
+		e := partner.Encoder.Encode(ABORTmessage{Message: reason, ServerID: server.ServerID}.ToRequest())
+		if e != nil {
+			fmt.Printf("[%s]  Sending Abort message %e to %s\n", server.ID, e, partner.Id)
 		}
 	}
 }
