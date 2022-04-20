@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/rand"
 	"net"
 	"sort"
 	"sync"
@@ -50,6 +51,10 @@ type PartnerServer struct {
 
 type ConnectionMap map[string]*Voter
 type ServerConnectionMap map[string]*PartnerServer
+
+// Function pointers for variability points
+type RSumPtr func(*Server) int
+type IntersectPtr func(*Server, []string) []string
 
 // Struct for server instance
 type Server struct {
@@ -106,6 +111,10 @@ type Server struct {
 
 	//Summed the Votes
 	didSum bool
+
+	//Variable points
+	SumCalculation RSumPtr
+	IntersectFunc  IntersectPtr
 }
 
 func (server *Server) InitClientSocket() {
@@ -294,28 +303,32 @@ func (server *Server) HandleServerPartnerConnect(conn net.Conn, encoder gob.Enco
 			server.mutex.Unlock()
 		case CLIENTLIST:
 			server.mutex.Lock()
-			checklist := CheckmapFromStringSlice(newRequest.Strs)
-			common := make([]string, 0)
-			for _, v := range server.Clientsconnections {
-				if _, exists := checklist[v.Id]; exists {
-					common = append(common, v.Id)
-				}
-			}
+			common := server.IntersectFunc(server, newRequest.Strs)
 			Pserver.commonClientList = true
 			server.VoterIntersection = CheckmapFromStringSlice(common)
-			if server.MainServer {
-				flag := true
-				for _, p := range server.PartnerConns {
-					if !p.commonClientList {
-						flag = false
-					}
+
+			flag := true
+			for _, p := range server.PartnerConns {
+				if !p.commonClientList {
+					flag = false
 				}
-				if flag {
-					// goto next step in process
-					if !server.didSum {
-						server.EndVotePeriod()
-						server.didSum = true
-					}
+			}
+			//Client list across 2 servers wasn't the same
+			if !flag {
+				//Tell other servers to abort
+				server.sendABORT("Non common clientList.")
+				// Inform clients of an error occured
+				tally := Results{
+					Yes:   0,
+					No:    0,
+					Error: true,
+				}
+				server.Tally <- tally
+			} else if server.MainServer {
+				// goto next step in process
+				if !server.didSum {
+					server.EndVotePeriod()
+					server.didSum = true
 				}
 			} else {
 				// Send common to main
@@ -339,6 +352,14 @@ func (server *Server) HandleServerPartnerConnect(conn net.Conn, encoder gob.Enco
 			}
 			server.PartnerConns[sID.ID] = &Pserver
 			server.mutex.Unlock()
+		case ABORT:
+			// Inform clients of an error occured
+			tally := Results{
+				Yes:   0,
+				No:    0,
+				Error: true,
+			}
+			server.Tally <- tally
 		}
 
 	}
@@ -391,6 +412,8 @@ func (server *Server) Initialise(serverID int, id, selfIP string, partnerIP []st
 	server.serverThresshold = 2
 	server.didSum = false
 	server.P = prime
+	server.SumCalculation = HonestRSum
+	server.IntersectFunc = HonestIntersection
 
 	// Log what we're doing
 	fmt.Printf("[%s][server Startup] I am main: %v\n", id, mainServer)
@@ -430,7 +453,7 @@ func (server *Server) WaitForResults() Results {
 	resultReq := results.ToRequest()
 
 	// Log
-	fmt.Printf("[%s] Tally: %v yes vote(s), %v no vote(s), %v total vote(s).\n", server.ID, results.Yes, results.No, results.Yes+results.No)
+	fmt.Printf("[%s] Tally: %v yes vote(s), %v no vote(s), %v total vote(s), Error detected %v.\n", server.ID, results.Yes, results.No, results.Yes+results.No, results.Error)
 
 	// Inform connected clients
 	for ip, client := range server.Clientsconnections {
@@ -476,14 +499,8 @@ func (server *Server) EndVotePeriod() {
 
 	fmt.Printf("[%s]: clients %s\n", server.ID, server.getClients(server.Clientsconnections))
 
-	// Tally up R-values
-	server.SelfRSum = 0
-	for _, v := range server.Clientsconnections {
-		if _, exists := server.VoterIntersection[v.Id]; exists {
-			fmt.Printf("[%s] Counting R-vote of %s\n", server.ID, v.Id)
-			server.SelfRSum = server.SelfRSum + v.RVal
-		}
-	}
+	// Calculate R sum using specified sum function (Variability point)
+	server.SelfRSum = server.SumCalculation(server)
 
 	// Log exit vote period
 	fmt.Printf("[%s] Voting period ended. Got R-value of %v\n", server.ID, server.SelfRSum)
@@ -503,6 +520,18 @@ func (server *Server) EndVotePeriod() {
 
 }
 
+func Pop(ints []int, i int) (int, []int) {
+	if len(ints) == 1 {
+		return ints[0], []int{}
+	}
+	j := i
+	if i == -1 {
+		j = rand.Intn(len(ints))
+	}
+	rval := ints[j] // We must capture return value before returning (Go evaluates multiple returns from right to left...)
+	return rval, append(ints[:j], ints[j+1:]...)
+}
+
 func (server *Server) DoTally() {
 
 	// Grab points
@@ -513,9 +542,6 @@ func (server *Server) DoTally() {
 	// Define vars
 	var yes_vote, no_vote int
 
-	// Sanity check -> any votes?
-	//if Gf_Sum(a.Y, b.Y, c.Y).ToByte() > 0 {
-
 	// Define  array
 	points := []Point{a, b, c}
 	sort.Sort(PointXSort(points))
@@ -523,18 +549,43 @@ func (server *Server) DoTally() {
 	// Log points
 	fmt.Printf("[%s] My points for lagrange interpolation is: %v.\n", server.ID, points)
 
-	// Get (yes) votes
-	yes_vote = LagrangeXP(0, server.P, points)
+	// Pick alpha points given our server ID
+	a1, tmp := Pop([]int{0, 1, 2}, int(server.ServerID)-1)
+	a2, tmp := Pop(tmp, -1)
+	a3, _ := Pop(tmp, -1)
 
-	// Get nays
-	no_vote = len(server.VoterIntersection) - yes_vote
+	// Define tally object
+	var tally Results
 
-	//}
+	// Define set of sample points
+	sample_set := []Point{points[a1], points[a2]}
 
-	// Log in struct
-	tally := Results{
-		Yes: yes_vote,
-		No:  no_vote,
+	// Try compute other point, given selection
+	if Lagrange(a3+1, server.P, sample_set) != points[a3].Y {
+		fmt.Printf("[%s] Error - Point %v is not a point on polynomium\n", server.ID, points[a3])
+
+		// Log in struct
+		tally = Results{
+			Yes:   0,
+			No:    0,
+			Error: true,
+		}
+
+	} else {
+
+		// Get (yes) votes
+		yes_vote = Lagrange(0, server.P, sample_set)
+
+		// Get nays
+		no_vote = len(server.VoterIntersection) - yes_vote
+
+		// Log in struct
+		tally = Results{
+			Yes:   yes_vote,
+			No:    no_vote,
+			Error: false,
+		}
+
 	}
 
 	// Enter into channel
@@ -564,6 +615,15 @@ func (server *Server) sendClients(input []string) { //RMessage{Vote: server.Self
 		e := partner.Encoder.Encode(StringSlice{slice: input}.ToRequest())
 		if e != nil {
 			fmt.Printf("[%s]  Sending clients %e to %s\n", server.ID, e, partner.Id)
+		}
+	}
+}
+
+func (server *Server) sendABORT(reason string) {
+	for _, partner := range server.PartnerConns {
+		e := partner.Encoder.Encode(ABORTmessage{Message: reason, ServerID: server.ServerID}.ToRequest())
+		if e != nil {
+			fmt.Printf("[%s]  Sending Abort message %e to %s\n", server.ID, e, partner.Id)
 		}
 	}
 }

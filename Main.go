@@ -17,7 +17,7 @@ func main() {
 	gob.Register(Request{})
 
 	var mode, name, partnerPort, partnerIP, portlist, clientIPs string
-	var id, testcase, vote, voteperiod, p, k, seed int
+	var id, testcase, vote, voteperiod, p, k, seed, badmode int
 	var waitForResults, mainServer, badvariant bool
 
 	flag.StringVar(&mode, "mode", "server", "Specify mode to run with.")
@@ -33,9 +33,9 @@ func main() {
 	flag.IntVar(&p, "p", 1997, "Specify the prime number to generate secret.")
 	flag.IntVar(&k, "k", 1, "Specify the amount of dishonest servers we are preparing for.")
 	flag.IntVar(&seed, "s", time.Now().Nanosecond(), "Specify the pseudo-random generator seed.")
+	flag.IntVar(&badmode, "b", -1, "Specify if server Should behave badly (ignore protocol, crash, etc.).")
 	flag.BoolVar(&waitForResults, "w", true, "Specify if client should *NOT* wait for results before terminating server connection.")
 	flag.BoolVar(&mainServer, "m", false, "Specify if server Should handle the first part of the secret.")
-	flag.BoolVar(&badvariant, "b", false, "Specify if server/client Should behave badly (ignore protocol, crash, etc.).")
 	flag.Parse()
 
 	// Init rand
@@ -44,6 +44,12 @@ func main() {
 	switch mode {
 	case "server":
 		server := CreateNewServer(id, name, portlist, strings.Split(partnerPort, ","), strings.Split(partnerIP, ","), voteperiod, mainServer, p)
+		// Update variability points if 0 <= badmode <= 1
+		if badmode == BEHAVIOUR_MODE_WRONG_R_VALUE {
+			server.SumCalculation = CorruptRSum
+		} else if badmode == BEHAVIOUR_MODE_CLIENT_INTERSET {
+			server.IntersectFunc = CorruptIntersection
+		}
 		server.WaitForResults()
 	case "client":
 		if vote < 0 || vote > 1 {

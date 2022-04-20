@@ -12,6 +12,7 @@ const (
 	CLIENTLIST
 	INTERSECTION
 	SERVERRESPONCE
+	ABORT
 )
 
 // Define actual request type
@@ -21,6 +22,7 @@ type Request struct {
 	Val2        int
 	Val3        int
 	Strs        []string
+	Flag        bool
 }
 
 func (r Request) ToRMsg() RMessage {
@@ -32,7 +34,7 @@ func (r Request) ToIdMsg() IDMessage {
 }
 
 func (r Request) ToTallyMsg() Results {
-	return Results{Yes: r.Val1, No: r.Val2}
+	return Results{Yes: r.Val1, No: r.Val2, Error: r.Flag}
 }
 
 func (r Request) ToStrinceSlice() StringSlice {
@@ -41,6 +43,10 @@ func (r Request) ToStrinceSlice() StringSlice {
 
 func (r Request) ToServerJoinMsg() ServerJoinIDMessage {
 	return ServerJoinIDMessage{ID: r.Strs[0], serverID: uint8(r.Val1)}
+}
+
+func (r Request) ToABMsg() ABORTmessage {
+	return ABORTmessage{Message: r.Strs[0], ServerID: uint8(r.Val1)}
 }
 
 // R-Vote Message (Client -> Server)
@@ -81,13 +87,14 @@ func (sID ServerJoinIDMessage) ToResponse() Request {
 
 // Result message (Server -> Client)
 type Results struct {
-	Yes int
-	No  int
+	Yes   int
+	No    int
+	Error bool
 }
 
 // Converts the RMessage into a request
 func (m Results) ToRequest() Request {
-	return Request{RequestType: TALLY, Val1: m.Yes, Val2: m.No}
+	return Request{RequestType: TALLY, Val1: m.Yes, Val2: m.No, Flag: m.Error}
 }
 
 type StringSlice struct {
@@ -109,4 +116,15 @@ func CheckmapFromStringSlice(input []string) StringHashSet {
 		result[v] = nil
 	}
 	return result
+}
+
+// ID Message
+type ABORTmessage struct {
+	ServerID uint8
+	Message  string
+}
+
+//Converts the ServerJoinIDMessage into a request
+func (ABm ABORTmessage) ToRequest() Request {
+	return Request{RequestType: ABORT, Strs: []string{ABm.Message}, Val1: int(ABm.ServerID)}
 }
