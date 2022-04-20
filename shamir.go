@@ -9,7 +9,7 @@ import (
 // @x = The vote (in {0, 1})
 // @p = The prime number to limit Z-field (-p, p)
 // @k = The polynomium degree (amount of corrupt parties we allow)
-func Secrify(x, p, k int) (r1, r2, r3 int) {
+func Secrify(x, p, k int) (r1, r2, r3, r4 int) {
 
 	// Generate random a-values
 	as := make([]int, 0)
@@ -23,6 +23,7 @@ func Secrify(x, p, k int) (r1, r2, r3 int) {
 	r1 = Poly(1, x, p, as)
 	r2 = Poly(2, x, p, as)
 	r3 = Poly(3, x, p, as)
+	r4 = Poly(4, x, p, as)
 
 	// Return
 	return
@@ -112,11 +113,7 @@ func Inverse(a, n int) int {
 // Computes n/d % p
 // Multiplicative inverse, which we need for staying in the field
 func DivMod(n, d, p int) int {
-	//inv, _ := GCD(d, p)
-	//inv2 := Inverse(d, p)
-	//fmt.Printf("inv = %v; inv2 = %v.\n", inv, inv2)
 	return n * Inverse(d, p)
-	//return n * Inverse(d, p)
 }
 
 // Computes the product of all integers in integer arrray

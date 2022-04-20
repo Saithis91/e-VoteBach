@@ -297,7 +297,7 @@ func (server *Server) HandleServerPartnerConnect(conn net.Conn, encoder gob.Enco
 				server.EndVotePeriod()
 				server.didSum = true
 			}
-			if len(server.RPoints) >= 3 {
+			if len(server.RPoints) >= server.serverThresshold+1 {
 				server.DoTally()
 			}
 			server.mutex.Unlock()
@@ -307,14 +307,15 @@ func (server *Server) HandleServerPartnerConnect(conn net.Conn, encoder gob.Enco
 			Pserver.commonClientList = true
 			server.VoterIntersection = CheckmapFromStringSlice(common)
 
-			flag := true
+			commonList := 0
 			for _, p := range server.PartnerConns {
 				if !p.commonClientList {
-					flag = false
+					commonList += 1
 				}
 			}
+			fmt.Printf("[%v] The Common List reached %v\n", server.ServerID, commonList)
 			//Client list across 2 servers wasn't the same
-			if !flag {
+			if commonList != server.serverThresshold {
 				//Tell other servers to abort
 				server.sendABORT("Non common clientList.")
 				// Inform clients of an error occured
@@ -324,6 +325,7 @@ func (server *Server) HandleServerPartnerConnect(conn net.Conn, encoder gob.Enco
 					Error: true,
 				}
 				server.Tally <- tally
+				//Client list across all servers was the same.
 			} else if server.MainServer {
 				// goto next step in process
 				if !server.didSum {
@@ -331,7 +333,7 @@ func (server *Server) HandleServerPartnerConnect(conn net.Conn, encoder gob.Enco
 					server.didSum = true
 				}
 			} else {
-				// Send common to main
+				// Send common to other servers
 				if !server.didSum {
 					server.sendClients(common)
 				}
@@ -353,6 +355,10 @@ func (server *Server) HandleServerPartnerConnect(conn net.Conn, encoder gob.Enco
 			server.PartnerConns[sID.ID] = &Pserver
 			server.mutex.Unlock()
 		case ABORT:
+			server.mutex.Lock()
+			sID := newRequest.ToABMsg()
+
+			fmt.Printf("[%v] An ABORT was recieved. Reason %v \n", server.ID, sID)
 			// Inform clients of an error occured
 			tally := Results{
 				Yes:   0,
@@ -409,7 +415,7 @@ func (server *Server) Initialise(serverID int, id, selfIP string, partnerIP []st
 	server.Tally = make(chan Results, 1)
 	server.RPoints = make(chan Point, 3)
 	server.MainServer = mainServer
-	server.serverThresshold = 2
+	server.serverThresshold = 3
 	server.didSum = false
 	server.P = prime
 	server.SumCalculation = HonestRSum
@@ -435,7 +441,7 @@ func (server *Server) Initialise(serverID int, id, selfIP string, partnerIP []st
 	for i := 0; i < len(server.PartnerIPs); i++ {
 		if !server.ConnectToServer(server.PartnerIPs[i], server.PartnerPorts[i]) {
 			go server.InitServerSocket(server.PartnerPorts[i])
-			fmt.Printf("[%s]Could not find other servers", id)
+			fmt.Printf("[%s] Could not find other servers\n", id)
 			break
 		}
 
@@ -538,30 +544,33 @@ func (server *Server) DoTally() {
 	a := <-server.RPoints
 	b := <-server.RPoints
 	c := <-server.RPoints
+	d := <-server.RPoints
 
 	// Define vars
 	var yes_vote, no_vote int
 
 	// Define  array
-	points := []Point{a, b, c}
+	points := []Point{a, b, c, d}
+
 	sort.Sort(PointXSort(points))
 
 	// Log points
 	fmt.Printf("[%s] My points for lagrange interpolation is: %v.\n", server.ID, points)
 
 	// Pick alpha points given our server ID
-	a1, tmp := Pop([]int{0, 1, 2}, int(server.ServerID)-1)
+	a1, tmp := Pop([]int{0, 1, 2, 3}, int(server.ServerID)-1)
 	a2, tmp := Pop(tmp, -1)
-	a3, _ := Pop(tmp, -1)
+	a3, tmp := Pop(tmp, -1)
+	a4, _ := Pop(tmp, -1)
 
 	// Define tally object
 	var tally Results
 
 	// Define set of sample points
-	sample_set := []Point{points[a1], points[a2]}
+	sample_set := []Point{points[a1], points[a2], points[a3]}
 
 	// Try compute other point, given selection
-	if Lagrange(a3+1, server.P, sample_set) != points[a3].Y {
+	if Lagrange(a3+1, server.P, sample_set) != points[a4].Y {
 		fmt.Printf("[%s] Error - Point %v is not a point on polynomium\n", server.ID, points[a3])
 
 		// Log in struct
@@ -610,7 +619,8 @@ func (server *Server) getClients(voters ConnectionMap) (strs []string) {
 	return
 }
 
-func (server *Server) sendClients(input []string) { //RMessage{Vote: server.SelfRSum}.ToRequest()
+func (server *Server) sendClients(input []string) {
+	fmt.Printf("[%v] Client list was [%v]\n", server.ServerID, input)
 	for _, partner := range server.PartnerConns {
 		e := partner.Encoder.Encode(StringSlice{slice: input}.ToRequest())
 		if e != nil {

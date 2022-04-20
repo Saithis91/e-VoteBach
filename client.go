@@ -16,6 +16,9 @@ const (
 
 	// Const index of server C (tertiary)
 	SERVER_C = 2
+
+	// Const index of server D (???)
+	SERVER_D = 3
 )
 
 type Client struct {
@@ -42,18 +45,18 @@ func (client *Client) Init(id string, servers, ports []string, P, K int, bad boo
 
 	// If serverCount = 1, copy (Assumption is the IP is the same for all servers)
 	if serverCount == 1 {
-		servers = []string{servers[0], servers[0], servers[0]}
+		servers = []string{servers[0], servers[0], servers[0], servers[0]}
 		serverCount = len(servers)
 	}
 
-	// If server count is not 3, PANIC (at the disco)
-	if serverCount != 3 {
-		panic(fmt.Errorf("expected 3 servers IPs but were given %v", serverCount))
+	// If server count is not 4, PANIC (at the disco)
+	if serverCount != 4 {
+		panic(fmt.Errorf("expected 4 servers IPs but were given %v", serverCount))
 	}
 
-	// Verify port count (must be 3 separate)
-	if len(ports) != 3 {
-		panic(fmt.Errorf("expected 3 servers ports but were given %v", len(ports)))
+	// Verify port count (must be 4 separate)
+	if len(ports) != 4 {
+		panic(fmt.Errorf("expected 4 servers ports but were given %v", len(ports)))
 	}
 
 	// Set identifier
@@ -62,10 +65,11 @@ func (client *Client) Init(id string, servers, ports []string, P, K int, bad boo
 	client.K = K
 
 	// Make arrays
-	client.Servers = make([]*net.Conn, 3)
-	client.Decoders = make([]*gob.Decoder, 3)
-	client.Encoders = make([]*gob.Encoder, 3)
+	client.Servers = make([]*net.Conn, 4)
+	client.Decoders = make([]*gob.Decoder, 4)
+	client.Encoders = make([]*gob.Encoder, 4)
 
+	//Make mate a loop of this later instead.
 	// Connect to server A
 	connA, encA, decA, typeA, err := ConnectServer(id, servers[0], ports[0])
 	if err != nil {
@@ -77,7 +81,7 @@ func (client *Client) Init(id string, servers, ports []string, P, K int, bad boo
 		}
 	}
 
-	// Connect to serverB
+	// Connect to server B
 	connB, encB, decB, typeB, err := ConnectServer(id, servers[1], ports[1])
 	if err != nil {
 		if !bad {
@@ -88,7 +92,7 @@ func (client *Client) Init(id string, servers, ports []string, P, K int, bad boo
 		}
 	}
 
-	// Connect to serverB
+	// Connect to server C
 	connC, encC, decC, typeC, err := ConnectServer(id, servers[2], ports[2])
 	if err != nil {
 		if !bad {
@@ -99,16 +103,28 @@ func (client *Client) Init(id string, servers, ports []string, P, K int, bad boo
 		}
 	}
 
+	// Connect to server D
+	connD, encD, decD, typeD, err := ConnectServer(id, servers[3], ports[3])
+	if err != nil {
+		if !bad {
+			panic(err) // Cannot complete protocol when one party is not available
+		} else {
+			fmt.Printf("[%s] Bad client failed connection (S2) and silently shutting off...", id)
+			return false
+		}
+	}
+
 	// Form arrays
-	roles := []int{typeA, typeB, typeC}
-	cons := []*net.Conn{connA, connB, connC}
-	encs := []*gob.Encoder{encA, encB, encC}
-	decs := []*gob.Decoder{decA, decB, decC}
+	roles := []int{typeA, typeB, typeC, typeD}
+	cons := []*net.Conn{connA, connB, connC, connD}
+	encs := []*gob.Encoder{encA, encB, encC, encD}
+	decs := []*gob.Decoder{decA, decB, decC, decD}
 
 	// Assign
 	allServers := client.AssignServerRole(SERVER_A, roles, cons, encs, decs)
 	allServers = allServers && client.AssignServerRole(SERVER_B, roles, cons, encs, decs)
 	allServers = allServers && client.AssignServerRole(SERVER_C, roles, cons, encs, decs)
+	allServers = allServers && client.AssignServerRole(SERVER_D, roles, cons, encs, decs)
 
 	// Log
 	fmt.Printf("[%s] All servers connected: %v\n", client.Id, allServers)
@@ -172,13 +188,13 @@ func ConnectServer(id, ip, port string) (*net.Conn, *gob.Encoder, *gob.Decoder, 
 func (client *Client) SendVote(vote int) {
 
 	// Get R1, R2
-	r1, r2, r3 := Secrify(vote, client.P, client.K)
+	r1, r2, r3, r4 := Secrify(vote, client.P, client.K)
 
 	// To array
-	shares := []int{r1, r2, r3}
+	shares := []int{r1, r2, r3, r4}
 
 	// Log
-	fmt.Printf("[%s] My secret is %v, with R1 = %v, R2 = %v, and R3 = %v\n", client.Id, vote, r1, r2, r3)
+	fmt.Printf("[%s] My secret is %v, with R1 = %v, R2 = %v, R3 = %v, and R4 = %v\n", client.Id, vote, r1, r2, r3, r4)
 
 	// Loop over
 	for k, v := range shares {
@@ -186,7 +202,7 @@ func (client *Client) SendVote(vote int) {
 		// Send r1 to S1
 		e := client.Encoders[k].Encode(RMessage{Vote: v}.ToRequest())
 		if e != nil {
-			fmt.Printf("[%s] Error when sending R1: %e\n", client.Id, e)
+			fmt.Printf("[%s] Error when sending R%v: %e\n", client.Id, k, e)
 		}
 
 	}
@@ -220,7 +236,7 @@ func (client *Client) Shutdown(waitForResults bool) {
 	if waitForResults {
 
 		// Create channel
-		countChan := make(chan Results, 3)
+		countChan := make(chan Results, 4)
 
 		// Go wait
 		for k := range client.Servers {
@@ -231,6 +247,7 @@ func (client *Client) Shutdown(waitForResults bool) {
 		countA := <-countChan
 		countB := <-countChan
 		countC := <-countChan
+		countD := <-countChan
 
 		// Report if any server detected an error
 		if countA.Error || countB.Error || countC.Error {
@@ -238,7 +255,7 @@ func (client *Client) Shutdown(waitForResults bool) {
 		}
 
 		// If agreement, print; otherwise inform of mismatching results.
-		if countA.Yes == countB.Yes && countA.No == countB.No && countA.Yes == countC.Yes && countA.No == countC.No {
+		if countA.Yes == countB.Yes && countA.No == countB.No && countA.Yes == countC.Yes && countA.No == countC.No && countA.Yes == countD.Yes && countA.No == countD.No {
 			fmt.Printf("[%s] Yes Votes: %v, No Votes: %v (Total %v).\n", client.Id, countA.Yes, countA.No, countA.Yes+countA.No)
 		} else {
 			fmt.Printf("[%s] Received two results that do no agree!\n\tServer A = %+v\n\tServer B = %+v\n\tServer C = %+v\n", client.Id, countA, countB, countA)
