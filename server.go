@@ -47,6 +47,9 @@ type PartnerServer struct {
 
 	//Common clientList
 	commonClientList bool
+
+	//Checked ClientList
+	comparedClients bool
 }
 
 type ConnectionMap map[string]*Voter
@@ -298,24 +301,29 @@ func (server *Server) HandleServerPartnerConnect(conn net.Conn, encoder gob.Enco
 				server.didSum = true
 			}
 			if len(server.RPoints) >= server.serverThresshold+1 {
+				fmt.Printf("[%v] Amount of Points gathered: %v\n Starting Tally\n", server.ID, len(server.RPoints))
 				server.DoTally()
+			} else {
+				fmt.Printf("[%v] Amount of Points gathered: %v\n", server.ID, len(server.RPoints))
 			}
 			server.mutex.Unlock()
 		case CLIENTLIST:
 			server.mutex.Lock()
 			common := server.IntersectFunc(server, newRequest.Strs)
+			Pserver.comparedClients = true
 			Pserver.commonClientList = true
 			server.VoterIntersection = CheckmapFromStringSlice(common)
-
-			commonList := 0
+			flag := true
 			for _, p := range server.PartnerConns {
-				if !p.commonClientList {
-					commonList += 1
+				if p.comparedClients {
+					if !p.commonClientList {
+						flag = false
+						fmt.Printf("[%v] didn't have common list with %v\n", server.ID, p.Id)
+					}
 				}
 			}
-			fmt.Printf("[%v] The Common List reached %v\n", server.ServerID, commonList)
 			//Client list across 2 servers wasn't the same
-			if commonList != server.serverThresshold {
+			if !flag {
 				//Tell other servers to abort
 				server.sendABORT("Non common clientList.")
 				// Inform clients of an error occured
@@ -412,11 +420,10 @@ func (server *Server) Initialise(serverID int, id, selfIP string, partnerIP []st
 	server.Clientsconnections = ConnectionMap{}
 	server.PartnerConns = ServerConnectionMap{}
 	server.VoteTime = waitTime
-	server.Tally = make(chan Results, 1)
-	server.RPoints = make(chan Point, 3)
-	server.MainServer = mainServer
 	server.serverThresshold = 3
-	server.didSum = false
+	server.Tally = make(chan Results, 1)
+	server.RPoints = make(chan Point, server.serverThresshold+1)
+	server.MainServer = mainServer
 	server.P = prime
 	server.SumCalculation = HonestRSum
 	server.IntersectFunc = HonestIntersection
@@ -538,8 +545,22 @@ func Pop(ints []int, i int) (int, []int) {
 	return rval, append(ints[:j], ints[j+1:]...)
 }
 
-func (server *Server) DoTally() {
+func argmin(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
 
+func argMax(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func (server *Server) DoTally() {
+	fmt.Printf("[%v] started Tally\n", server.ID)
 	// Grab points
 	a := <-server.RPoints
 	b := <-server.RPoints
@@ -567,11 +588,15 @@ func (server *Server) DoTally() {
 	var tally Results
 
 	// Define set of sample points
-	sample_set := []Point{points[a1], points[a2], points[a3]}
+	sample_set := []Point{points[a1], points[a2], points[argmin(a3, a4)]}
+	sort.Sort(PointXSort(sample_set))
+
+	// Log points
+	fmt.Printf("[%s] My sample points for lagrange interpolation is: %v.\n", server.ID, sample_set)
 
 	// Try compute other point, given selection
-	if Lagrange(a3+1, server.P, sample_set) != points[a4].Y {
-		fmt.Printf("[%s] Error - Point %v is not a point on polynomium\n", server.ID, points[a3])
+	if p := Lagrange(argMax(a3, a4)+1, server.P, sample_set); p != points[argMax(a3, a4)].Y {
+		fmt.Printf("[%s] Error - Point %v is not a point on polynomium, but %v is.\n", server.ID, points[a4], p)
 
 		// Log in struct
 		tally = Results{

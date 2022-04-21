@@ -250,7 +250,7 @@ func (client *Client) Shutdown(waitForResults bool) {
 		countD := <-countChan
 
 		// Report if any server detected an error
-		if countA.Error || countB.Error || countC.Error {
+		if countA.Error || countB.Error || countC.Error || countD.Error {
 			fmt.Printf("[%s] One or more servers reported an error while computing tally!\n", client.Id)
 		}
 
@@ -258,7 +258,7 @@ func (client *Client) Shutdown(waitForResults bool) {
 		if countA.Yes == countB.Yes && countA.No == countB.No && countA.Yes == countC.Yes && countA.No == countC.No && countA.Yes == countD.Yes && countA.No == countD.No {
 			fmt.Printf("[%s] Yes Votes: %v, No Votes: %v (Total %v).\n", client.Id, countA.Yes, countA.No, countA.Yes+countA.No)
 		} else {
-			fmt.Printf("[%s] Received two results that do no agree!\n\tServer A = %+v\n\tServer B = %+v\n\tServer C = %+v\n", client.Id, countA, countB, countA)
+			fmt.Printf("[%s] Received two results that do no agree!\n\tServer A = %+v\n\tServer B = %+v\n\tServer C = %+v\n\tServer D = %+v\n", client.Id, countA, countB, countC, countD)
 		}
 
 		// Close channel

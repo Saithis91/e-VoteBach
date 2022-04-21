@@ -181,19 +181,24 @@ func RunTest03() bool {
 	fmt.Println("--- Gauss-Elimination ---")
 	fmt.Println()
 
-	// Create matrix
-	A := [][]float64{
-		{1, 2, 3},
-		{4, 5, 6},
-		{7, 8, 9},
+	// Create equations
+	coeffs := Matrix{
+		{2, 1},
+		{-1, 1},
 	}
+
+	// Create V-vector
+	B := Vector{5, 2}
+
+	// Create matrix
+	A := AugmentedMatrix(coeffs, B)
 
 	// Solve
 	gauss_elim(A)
-	B := gauss_jordan_elim(A)
-	fmt.Printf("A:%v\nB:%v\n", A, B)
+	X := gauss_jordan_elim(A)
+	fmt.Printf("A:%v\nX:%v\n", A, X)
 
-	return true
+	return X[0] == 1 && X[1] == 3
 
 }
 
