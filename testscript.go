@@ -34,6 +34,8 @@ var testCases = []func() bool{
 	RunTest01,
 	RunTest02,
 	RunTest03,
+	RunTest04,
+	RunTest05,
 }
 
 // Dispatches calls
@@ -195,13 +197,58 @@ func RunTest03() bool {
 
 	// Solve
 	gauss_elim(A)
-	X := gauss_jordan_elim(A)
+	X := back_substitute(A)
 	fmt.Printf("A:%v\nX:%v\n", A, X)
 
 	return X[0] == 1 && X[1] == 3
 
 }
 
+func RunTest04() bool {
+
+	// Log test
+	fmt.Println("--- Running test 4 ---")
+	fmt.Println("--- Lagrange with all variables ---")
+	fmt.Println()
+
+	set := []Point{{X: 1, Y: 563}, {X: 2, Y: 1125}, {X: 3, Y: 1687}, {X: 4, Y: 2249}}
+	p := Lagrange(0, 1997, set)
+	fmt.Printf("P was %v\n", p)
+
+	Polynomial(set)
+	return false
+}
+
+func RunTest05() bool {
+
+	// Log test
+	fmt.Println("--- Running test 5 ---")
+	fmt.Println("--- Gauss-Elimination (P=991) ---")
+	fmt.Println()
+
+	// Define field
+	p := 991
+
+	// Create equations
+	coeffs := IntMatrix{
+		{2, 1},
+		{-1, 1},
+	}
+
+	// Create V-vector
+	B := IntVector{5, 2}
+
+	// Create matrix
+	A := AugmentedIntMatrix(coeffs, B)
+
+	// Solve
+	gauss_elim_field(A, p)
+	X := back_substitute_field(A, p)
+	fmt.Printf("A:%v\nX:%v\n", A, X)
+
+	return false
+
+}
 func AssertIsTrue(condition bool, msg string) {
 	if !condition {
 		panic(fmt.Errorf("assert condition failed: %s", msg))
