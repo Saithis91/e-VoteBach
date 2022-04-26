@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"math/rand"
 	"os"
 	"os/exec"
@@ -36,6 +37,9 @@ var testCases = []func() bool{
 	RunTest03,
 	RunTest04,
 	RunTest05,
+	RunTest06,
+	RunTest07,
+	RunTest08,
 }
 
 // Dispatches calls
@@ -184,7 +188,7 @@ func RunTest03() bool {
 	fmt.Println()
 
 	// Create equations
-	coeffs := Matrix{
+	/*coeffs := Matrix{
 		{2, 1},
 		{-1, 1},
 	}
@@ -193,14 +197,14 @@ func RunTest03() bool {
 	B := Vector{5, 2}
 
 	// Create matrix
-	A := AugmentedMatrix(coeffs, B)
+	/*A := AugmentedMatrix(coeffs, B)
 
 	// Solve
 	gauss_elim(A)
 	X := back_substitute(A)
 	fmt.Printf("A:%v\nX:%v\n", A, X)
 
-	return X[0] == 1 && X[1] == 3
+	return X[0] == 1 && X[1] == 3*/return true
 
 }
 
@@ -211,11 +215,11 @@ func RunTest04() bool {
 	fmt.Println("--- Lagrange with all variables ---")
 	fmt.Println()
 
-	set := []Point{{X: 1, Y: 563}, {X: 2, Y: 1125}, {X: 3, Y: 1687}, {X: 4, Y: 2249}}
+	set := []Point{{X: 1, Y: 562}, {X: 2, Y: 1125}, {X: 3, Y: 1687}, {X: 4, Y: 2200}}
 	p := Lagrange(0, 1997, set)
 	fmt.Printf("P was %v\n", p)
 
-	Polynomial(set)
+	//Polynomial(set)
 	return false
 }
 
@@ -227,7 +231,7 @@ func RunTest05() bool {
 	fmt.Println()
 
 	// Define field
-	p := 991
+	/*p := 991
 
 	// Create equations
 	coeffs := IntMatrix{
@@ -239,16 +243,208 @@ func RunTest05() bool {
 	B := IntVector{5, 2}
 
 	// Create matrix
-	A := AugmentedIntMatrix(coeffs, B)
+	/*A := AugmentedIntMatrix(coeffs, B)
 
 	// Solve
 	gauss_elim_field(A, p)
 	X := back_substitute_field(A, p)
-	fmt.Printf("A:%v\nX:%v\n", A, X)
+	fmt.Printf("A:%v\nX:%v\n", A, X)*/
 
 	return false
 
 }
+
+func RunTest06() bool {
+
+	// Log test
+	fmt.Println("--- Running test 6 ---")
+	fmt.Println()
+
+	// Create equations simple test
+	A := Matrix{
+		{2, 1},
+		{-1, 1},
+	}
+	B := Vector{5, 2}
+	X := GaussElim(A, B)
+
+	// Test
+	AssertIsTrue(X[0] == 1 && X[1] == 3, fmt.Sprintf("[%v, %v] != [1,3]", X[0], X[1]))
+
+	// Create equations simple test
+	A = Matrix{
+		{6, -8, -1},
+		{3, -9, 7},
+		{-10, -9, 6},
+	}
+	B = Vector{97, 156, 56}
+	X = GaussElim(A, B)
+
+	// Test
+	AssertIsTrue(int(X[0]) == 7 && X[1] == -8 && X[2] == 9, fmt.Sprintf("[%v, %v, %v] != [7,-8,9]", X[0], X[1], X[2]))
+
+	// Create equations simple test
+	A = Matrix{
+		{1, 1, 1},
+		{0, 2, 5},
+		{2, 5, -1},
+	}
+	B = Vector{6, -4, 27}
+	X = GaussElim(A, B)
+
+	// Test
+	AssertIsTrue(int(X[0]) == 5 && X[1] == 3 && X[2] == -2, fmt.Sprintf("[%v, %v, %v] != [5,3,-2]", X[0], X[1], X[2]))
+
+	// Create equations simple test
+	A = Matrix{
+		{-6, 2, 8, 0},
+		{-3, -1, -8, -7},
+		{2, 8, -9, -1},
+		{-10, -2, 5, -5},
+	}
+	B = Vector{-94, 104, 9, -19}
+	X = GaussElim(A, B)
+
+	// Test
+	AssertIsTrue(int(X[0]) == 5 && X[1] == -8 && X[2] == -6 && X[3] == -9, fmt.Sprintf("[%v, %v, %v, %v] != [5,-8,-6,-9]", X[0], X[1], X[2], X[3]))
+
+	// Create equations simple test
+	A = Matrix{
+		{0, 0, 0, 1, 1},
+		{1, 1, 1, 1, 0},
+		{8, 4, 2, 1, 7},
+		{27, 9, 3, 1, 13},
+		{64, 16, 4, 1, 21},
+	}
+	B = Vector{1, 0, 14, 39, 84}
+	Y := GaussElim(A, B)
+
+	E := Y[len(Y)-1]
+	Q := Y
+
+	P := (math.Pow(Q[0], 3)*1 + math.Pow(Q[1], 2)*1 + Q[2]*1 + Q[3]) / (1 - E)
+
+	fmt.Printf("%v\n%v\n", Y, P)
+
+	return true
+
+}
+
+func RunTest07() bool {
+
+	// Log test
+	fmt.Println("--- Running test 7 ---")
+	fmt.Println("--- Lagrange with all variables ---")
+	fmt.Println()
+
+	//Iterate over the points, and see if the CorrectError function, can correct the equation, regardless of which point is corrupt.
+
+	//X=4 is corrupted.
+	set := []Point{{X: 1, Y: 563}, {X: 2, Y: 1125}, {X: 3, Y: 1687}, {X: 4, Y: 2200}}
+
+	if punkt, e := CorrectError(set, 1997); e != nil {
+		return false
+	} else {
+		fmt.Printf("P was %v\n", punkt)
+		AssertIsTrue(punkt == 1, "P was not equal 1\n")
+	}
+	//X=3 is corrupted.
+	set = []Point{{X: 1, Y: 563}, {X: 2, Y: 1125}, {X: 3, Y: 1686}, {X: 4, Y: 2249}}
+
+	if punkt, e := CorrectError(set, 1997); e != nil {
+		return false
+	} else {
+		fmt.Printf("P was %v\n", punkt)
+		AssertIsTrue(punkt == 1, "P was not equal 1\n")
+	}
+	//X=2 is corrupted.
+	set = []Point{{X: 1, Y: 563}, {X: 2, Y: 112}, {X: 3, Y: 1687}, {X: 4, Y: 2249}}
+
+	if punkt, e := CorrectError(set, 1997); e != nil {
+		return false
+	} else {
+		fmt.Printf("P was %v\n", punkt)
+		AssertIsTrue(punkt == 1, "P was not equal 1\n")
+	}
+	//X=1 is corrupted.
+	set = []Point{{X: 1, Y: 1}, {X: 2, Y: 1125}, {X: 3, Y: 1687}, {X: 4, Y: 2249}}
+
+	if punkt, e := CorrectError(set, 1997); e != nil {
+		return false
+	} else {
+		fmt.Printf("P was %v\n", punkt)
+		AssertIsTrue(punkt == 1, "P was not equal 1\n")
+	}
+
+	return true
+}
+
+func RunTest08() bool {
+	// Init rand
+	rand.Seed(1)
+
+	// Log test
+	fmt.Println("--- Running test 8 ---")
+	fmt.Println()
+
+	// Log what we're testing
+	fmt.Println("Starting test-server")
+	fmt.Println()
+
+	// Create test server
+	localTestServer := CreateNewServer(1, "Main Server", "10001", []string{"11001"}, []string{localIP, localIP}, 15, true, 1997)
+
+	time.Sleep(2 * time.Second)
+	// Spawn server
+	if _, e := TestUtil_SpawnTestProcess("-id", "2", "-mode", "server", "-name", "otherServer", "-port", "10002", "-pport", "11001,11002,11003", "-t", "15", "-s", "1"); e != nil {
+		fmt.Printf("second server failed Error was %v.\n", e)
+		return false
+	}
+
+	time.Sleep(2 * time.Second)
+	// Spawn server
+	if _, e := TestUtil_SpawnTestProcess("-id", "3", "-mode", "server", "-name", "ThirdServer", "-port", "10003", "-pport", "11001,11002,11003", "-t", "15", "-s", "1"); e != nil {
+		fmt.Printf("second server failed Error was %v.\n", e)
+		return false
+	}
+
+	time.Sleep(2 * time.Second)
+	// Spawn server with dishonest R values.
+	if _, e := TestUtil_SpawnTestProcess("-id", "4", "-mode", "server", "-name", "ForthServer-Baddie", "-port", "10004", "-pport", "11001,11002,11003", "-t", "15", "-s", "1", "-b", "1"); e != nil {
+		fmt.Printf("second server failed Error was %v.\n", e)
+		return false
+	}
+
+	fmt.Println()
+	fmt.Printf("@@@ TEST  2: Waiting 5s before spawning clients\n")
+	fmt.Println()
+	time.Sleep(5 * time.Second)
+
+	// Spawn voters
+	TestUtil_ClientVoteInstance(clientVote{id: "1", name: "yay", Vote: 1, DoSeed: true, Seed: 1})
+	TestUtil_ClientVoteInstance(clientVote{id: "2", name: "nay", Vote: 0, DoSeed: true, Seed: 1})
+
+	// Wait for results
+	fmt.Println()
+	fmt.Printf("@@@ TEST 2: Waiting for results\n")
+	fmt.Println()
+	// Wait for local test server
+	res := localTestServer.WaitForResults()
+
+	fmt.Println()
+	fmt.Printf("@@@ TEST 2: Got results:\n\t%+v\n", res)
+	fmt.Println()
+
+	// Wait 1s before passing/failing
+	time.Sleep(1 * time.Second)
+
+	// Halt server
+	localTestServer.Halt()
+
+	// Do asserts
+	return res.No == 1 && res.Yes == 1 && !res.Error
+}
+
 func AssertIsTrue(condition bool, msg string) {
 	if !condition {
 		panic(fmt.Errorf("assert condition failed: %s", msg))

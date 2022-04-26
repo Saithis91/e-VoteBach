@@ -567,8 +567,8 @@ func (server *Server) DoTally() {
 	c := <-server.RPoints
 	d := <-server.RPoints
 
-	// Define vars
-	var yes_vote, no_vote int
+	// Define yes vote (it may vary how we get it)
+	var yes_vote int
 
 	// Define  array
 	points := []Point{a, b, c, d}
@@ -596,30 +596,43 @@ func (server *Server) DoTally() {
 
 	// Try compute other point, given selection
 	if p := Lagrange(argMax(a3, a4)+1, server.P, sample_set); p != points[argMax(a3, a4)].Y {
-		fmt.Printf("[%s] Error - Point %v is not a point on polynomium, but %v is.\n", server.ID, points[a4], p)
 
-		// Log in struct
-		tally = Results{
-			Yes:   0,
-			No:    0,
-			Error: true,
+		// Log
+		fmt.Printf("[%s] Error - Point %v is not a point on polynomium, but %v is. Attempting to correct\n", server.ID, points[a4], p)
+
+		// We now try to recover
+		var err error
+		if yes_vote, err = CorrectError(points, server.P); err != nil {
+			fmt.Printf("[%s] Error - failed to recover from error, %e\n", server.ID, err)
+
+			// Log in struct
+			tally = Results{
+				Yes:   yes_vote,
+				No:    -1,
+				Error: true,
+			}
+
+			// Enter into channel
+			server.Tally <- tally
+
+			return
 		}
 
 	} else {
 
-		// Get (yes) votes
+		// Get (yes/yay) votes
 		yes_vote = Lagrange(0, server.P, sample_set)
 
-		// Get nays
-		no_vote = len(server.VoterIntersection) - yes_vote
+	}
 
-		// Log in struct
-		tally = Results{
-			Yes:   yes_vote,
-			No:    no_vote,
-			Error: false,
-		}
+	// Get nays
+	no_vote := len(server.VoterIntersection) - yes_vote
 
+	// Log in struct
+	tally = Results{
+		Yes:   yes_vote,
+		No:    no_vote,
+		Error: false,
 	}
 
 	// Enter into channel

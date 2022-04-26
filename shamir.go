@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"math/rand"
 )
 
@@ -132,42 +133,42 @@ func Lagrange(x, p int, points []Point) int {
 
 }
 
-//No clue where this should actually go.
+// Finds the index of the error point using the Berlekamp–Welch algorithm
+// it then corrects the error by ommiting the point at the specified error index
+// and computes L(0, (x,y)'...). If the correction fails, an error is returned.
+func CorrectError(points []Point, prime int) (int, error) {
 
-//Compute the Polynomial
-func Polynomial(points []Point) {
-	// Create equations
-	//
-	coeffs := Matrix{
-		{},
-		{},
-		{},
-		{},
-	}
-	B := Vector{}
+	// Create system of linear equations
+	A := make(Matrix, len(points))
+	B := make(Vector, len(points))
 	for i := 0; i < len(points); i++ {
 		x := points[i].X
 		y := points[i].Y
-		//coeffs[i] = Vector{float64(pmod(x, 3)), float64(pmod(x, 2)), float64(x), 1, float64(y)}
-		coeffs[i] = Vector{float64(IPow(x, 2)), float64(x), 1, float64(y)}
-		B = append(B, float64(y*x))
+		A[i] = Vector{float64(IPow(x, 2)), float64(x), 1, float64(y)}
+		B[i] = float64(y * x)
 	}
-	//fmt.Println(coeffs)
-	//fmt.Println(B)
-	// Create V-vector
 
-	// Create matrix
-	A := AugmentedMatrix(coeffs, B)
+	// Apply gauss
+	Y := GaussElim(A, B)
 
-	AugMatStr(A)
+	// Grab E:
+	e := int(math.Round(Y[len(Y)-1])) - 1
 
-	// Solve
-	//gauss_elim(A)
-	dum_gauss_elim(A)
-	fmt.Print("\nFinal Output was\n")
-	AugMatStr(A)
-	fmt.Print("\nBack-Sub was:\n")
-	//X := back_substitute(A)
-	X := dum_back_Sub(A)
-	fmt.Printf("A:%v\nX:%v\n", A, X)
+	// Verify in line
+	if e >= 0 && e < len(points) {
+		//fmt.Printf("e was: %v\nY=%v\n", e, Y)
+		// Remove error coordinate
+		pp := append(points[:e], points[e+1:]...)
+		//fmt.Printf("pp was: %v\n", pp)
+
+		// Return interpolation without 'e'
+		return Lagrange(0, prime, pp), nil
+
+	} else {
+
+		// Return -1 one and an error
+		return -1, fmt.Errorf("failed to correct error, e=%v, which is outside point range (may be no errors in point set)", e)
+
+	}
+
 }

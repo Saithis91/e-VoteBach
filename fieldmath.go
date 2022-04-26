@@ -35,28 +35,27 @@ func GCD(a, b int) (int, int) {
 // Finds the multiplicative inverse of a*t mod n (that is, find -t)
 // https://en.wikipedia.org/wiki/Extended_Euclidean_algorithm
 // Section on calculating the inverse
-func Inverse(a, n int) int {
+func Inverse(a, p int) int {
 	t := 0
-	r := n
+	r := p
 	nt := 1
 	nr := a
 	for nr != 0 {
 		q := r / nr
-		t, nt = nt, t-q*nt
 		r, nr = nr, r-q*nr
+		t, nt = nt, t-q*nt
 	}
-	if r > 1 {
-		panic(fmt.Errorf("cannot invert %v given %v", a, n))
+	if r > p {
+		panic(fmt.Errorf("cannot invert %v given %v", a, p))
 	}
-	if t > 0 {
-		return -t // We need the inverse, so we want the negative value here
-	}
-	return t
+	return (1 / r) * t
 }
 
 // Computes n/d % p
 // Multiplicative inverse, which we need for staying in the field
 func DivMod(n, d, p int) int {
+	//inv, _ := GCD(d, p)
+	//return n * inv
 	return n * Inverse(d, p)
 }
 
