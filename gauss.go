@@ -20,6 +20,22 @@ func AugmentedMatrix(coeffs Matrix, B Vector) Matrix {
 	return A
 }
 
+func AugMatStr(A Matrix) {
+	for _, row := range A {
+		var rowstr string
+		for i, col := range row {
+			if i == 0 {
+				rowstr = fmt.Sprintf("%v", col)
+			} else if i == len(row)-1 {
+				rowstr = fmt.Sprintf("%s = %v", rowstr, col)
+			} else {
+				rowstr = fmt.Sprintf("%s %v", rowstr, col)
+			}
+		}
+		fmt.Println(rowstr)
+	}
+}
+
 func AugmentedIntMatrix(coeffs IntMatrix, B IntVector) IntMatrix {
 	n := len(coeffs)
 	A := make(IntMatrix, n)
@@ -31,8 +47,8 @@ func AugmentedIntMatrix(coeffs IntMatrix, B IntVector) IntMatrix {
 
 func gauss_elim(A Matrix) {
 	m := len(A)    // num equations
-	n := len(A[0]) // num columns
-	if n > m {
+	n := len(A[0]) // num columns (num variables + B or Y column vector)
+	if n-1 > m {
 		panic(fmt.Errorf("cannot solve a system with %v unknowns and %v equations - more unknowns than equations", n, m))
 	}
 	h, k := 0, 0 // first pivot point
@@ -52,7 +68,43 @@ func gauss_elim(A Matrix) {
 			h++
 			k++
 		}
+		fmt.Println(" ")
+		AugMatStr(A)
 	}
+}
+
+func dum_gauss_elim(A Matrix) {
+	n := len(A)
+	for i := 0; i < n; i++ {
+		if A[i][i] == 0 {
+			continue
+		}
+		for j := i + 1; j < n; j++ {
+			ratio := A[j][i] / A[i][i]
+
+			for k := 0; k < n+1; k++ {
+				A[j][k] = A[j][k] - ratio*A[i][k]
+			}
+		}
+		fmt.Println(" ")
+		AugMatStr(A)
+	}
+}
+
+func dum_back_Sub(A Matrix) Vector {
+	n := len(A)
+	X := make(Vector, n)
+	X[n-1] = A[n-1][n] / A[n-1][n-1]
+
+	for i := n - 2; i > -1; i-- {
+		X[i] = A[i][n]
+
+		for j := i + 1; j < n; j++ {
+			X[i] = X[i] - A[i][j]*X[j]
+		}
+		X[i] = X[i] / A[i][i]
+	}
+	return X
 }
 
 func gauss_elim_field(A IntMatrix, p int) {

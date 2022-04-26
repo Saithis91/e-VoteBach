@@ -149,18 +149,25 @@ func Polynomial(points []Point) {
 		x := points[i].X
 		y := points[i].Y
 		//coeffs[i] = Vector{float64(pmod(x, 3)), float64(pmod(x, 2)), float64(x), 1, float64(y)}
-		coeffs[i] = Vector{float64(x), float64(y)}
+		coeffs[i] = Vector{float64(IPow(x, 2)), float64(x), 1, float64(y)}
 		B = append(B, float64(y*x))
 	}
-	fmt.Println(coeffs)
-	fmt.Println(B)
+	//fmt.Println(coeffs)
+	//fmt.Println(B)
 	// Create V-vector
 
 	// Create matrix
 	A := AugmentedMatrix(coeffs, B)
 
+	AugMatStr(A)
+
 	// Solve
-	gauss_elim(A)
-	X := back_substitute(A)
+	//gauss_elim(A)
+	dum_gauss_elim(A)
+	fmt.Print("\nFinal Output was\n")
+	AugMatStr(A)
+	fmt.Print("\nBack-Sub was:\n")
+	//X := back_substitute(A)
+	X := dum_back_Sub(A)
 	fmt.Printf("A:%v\nX:%v\n", A, X)
 }
