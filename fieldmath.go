@@ -66,3 +66,37 @@ func SubField(rhs, lhs, p int) int {
 func MulField(rhs, lhs, p int) int {
 	return pmod(rhs*rhs, p)
 }
+
+func SumField(p int, vals ...int) int {
+	sum := 0
+	for _, v := range vals {
+		sum = pmod(sum+v, p)
+	}
+	return sum
+}
+
+// Peforms x^y operation and stays in integer domain.
+// Using math.pow would require casting which *could* lead to incorrect values because floating points
+func IPow(x, y int) int {
+	if y == 0 {
+		return 1
+	}
+	z := x
+	for i := 2; i <= y; i++ {
+		z *= x
+	}
+	return z
+}
+
+// Peforms x^y operation and stays in integer domain.
+// Using math.pow would require casting which *could* lead to incorrect values because floating points
+func IPowF(x, y, p int) int {
+	if y == 0 {
+		return 1
+	}
+	z := x
+	for i := 2; i <= y; i++ {
+		z = MulField(z, x, p)
+	}
+	return z
+}

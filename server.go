@@ -662,7 +662,7 @@ func (server *Server) sendClients(input []string) {
 	for _, partner := range server.PartnerConns {
 		e := partner.Encoder.Encode(StringSlice{slice: input}.ToRequest())
 		if e != nil {
-			fmt.Printf("[%s]  Sending clients %e to %s\n", server.ID, e, partner.Id)
+			fmt.Printf("[%s] Sending clients %e to %s\n", server.ID, e, partner.Id)
 		}
 	}
 }
@@ -671,7 +671,7 @@ func (server *Server) sendABORT(reason string) {
 	for _, partner := range server.PartnerConns {
 		e := partner.Encoder.Encode(ABORTmessage{Message: reason, ServerID: server.ServerID}.ToRequest())
 		if e != nil {
-			fmt.Printf("[%s]  Sending Abort message %e to %s\n", server.ID, e, partner.Id)
+			fmt.Printf("[%s] Sending Abort message %e to %s\n", server.ID, e, partner.Id)
 		}
 	}
 }

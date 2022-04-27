@@ -20,7 +20,8 @@ func HonestRSum(server *Server) int {
 	for _, v := range server.Clientsconnections {
 		if _, exists := server.VoterIntersection[v.Id]; exists {
 			fmt.Printf("[%s] Counting R-vote of %s\n", server.ID, v.Id)
-			RSum = RSum + v.RVal
+			//RSum = RSum + v.RVal
+			RSum = pmod(RSum+v.RVal, server.P)
 		}
 	}
 	return RSum
@@ -30,16 +31,16 @@ func HonestRSum(server *Server) int {
 func CorruptRSum(server *Server) int {
 	mode := rand.Intn(4)
 	if mode == 0 {
-		fmt.Printf("[BadServer] Corrupting sum to P-value: %v.\n", server.P)
+		fmt.Printf("\033[31m[BadServer] Corrupting sum to P-value: %v.\n\033[37m", server.P)
 		return server.P // simply return p
 	} else if mode == 1 {
-		fmt.Printf("[BadServer] Corrupting sum to honest sum +- random offset: %v.\n", server.P)
+		fmt.Printf("\033[31m[BadServer] Corrupting sum to honest sum +- random offset: %v.\n\033[37m", server.P)
 		return HonestRSum(server) + (rand.Intn(server.P*2) - server.P) // Some random offset from honest r-sum (this may be an OK)
 	} else if mode == 2 {
-		fmt.Printf("[BadServer] Corrupting sum to random upper-bounded P-value: %v.\n", server.P)
+		fmt.Printf("\033[31m[BadServer] Corrupting sum to random upper-bounded P-value: %v.\n\033[37m", server.P)
 		return rand.Intn(server.P) // random number in field (this may be an OK)
 	} else {
-		fmt.Printf("[BadServer] Corrupting sum to random negative bounded P-value: %v.\n", server.P)
+		fmt.Printf("\033[31m[BadServer] Corrupting sum to random negative bounded P-value: %v.\n\033[37m", server.P)
 		return -rand.Intn(server.P) // Outside of field
 	}
 }
