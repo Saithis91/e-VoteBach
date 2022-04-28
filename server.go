@@ -658,7 +658,7 @@ func (server *Server) getClients(voters ConnectionMap) (strs []string) {
 }
 
 func (server *Server) sendClients(input []string) {
-	fmt.Printf("[%v] Client list was [%v]\n", server.ServerID, input)
+	//fmt.Printf("[%v] Client list was [%v]\n", server.ServerID, input)
 	for _, partner := range server.PartnerConns {
 		e := partner.Encoder.Encode(StringSlice{slice: input}.ToRequest())
 		if e != nil {

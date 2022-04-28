@@ -622,7 +622,7 @@ func RunTest11() bool {
 
 func RunTest12() bool {
 	// Init rand
-	rand.Seed(1)
+	//rand.Seed(1)
 
 	// Log test
 	fmt.Println("--- Running test 12 ---")
@@ -632,7 +632,7 @@ func RunTest12() bool {
 	fmt.Println("Starting test-server")
 	fmt.Println()
 	// Create test server
-	localTestServer := CreateNewServer(1, "Main Server", "10001", []string{"11001"}, []string{localIP, localIP}, 25, true, 257)
+	localTestServer := CreateNewServer(1, "Main Server", "10001", []string{"11001"}, []string{localIP, localIP}, 25, true, 1997)
 
 	time.Sleep(2 * time.Second)
 	// Spawn server
@@ -661,7 +661,7 @@ func RunTest12() bool {
 	time.Sleep(5 * time.Second)
 
 	// Amount to test
-	clients := 50 //+ rand.Intn(587)
+	clients := 50 + rand.Intn(587)
 
 	// Spawn voters
 	yesVoters := 0
