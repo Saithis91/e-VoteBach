@@ -29,13 +29,13 @@ func HonestRSum(server *Server) int {
 
 // Do corrupt R-sum -> pick one of four options
 func CorruptRSum(server *Server) int {
-	mode := rand.Intn(4)
+	mode := 2 // rand.Intn(4)
 	if mode == 0 {
 		fmt.Printf("\033[31m[BadServer] Corrupting sum to P-value: %v.\n\033[37m", server.P)
 		return server.P // simply return p
 	} else if mode == 1 {
 		fmt.Printf("\033[31m[BadServer] Corrupting sum to honest sum +- random offset: %v.\n\033[37m", server.P)
-		return HonestRSum(server) + (rand.Intn(server.P*2) - server.P) // Some random offset from honest r-sum (this may be an OK)
+		return pmod(HonestRSum(server)+(rand.Intn(server.P*2)-server.P), server.P) // Some random offset from honest r-sum (this may be an OK)
 	} else if mode == 2 {
 		fmt.Printf("\033[31m[BadServer] Corrupting sum to random upper-bounded P-value: %v.\n\033[37m", server.P)
 		return rand.Intn(server.P) // random number in field (this may be an OK)

@@ -59,12 +59,14 @@ func DivMod(n, d, p int) int {
 	return n * Inverse(d, p)
 }
 
-func SubField(rhs, lhs, p int) int {
+func SubField(lhs, rhs, p int) int {
+	//fmt.Printf("%v - %v (mod %v)\n", lhs, rhs, p)
 	return pmod(lhs-rhs, p)
 }
 
-func MulField(rhs, lhs, p int) int {
-	return pmod(rhs*rhs, p)
+func MulField(lhs, rhs, p int) int {
+	//fmt.Printf("%v * %v (mod %v)\n", lhs, rhs, p)
+	return pmod(lhs*rhs, p)
 }
 
 func SumField(p int, vals ...int) int {

@@ -42,6 +42,8 @@ var testCases = []func() bool{
 	RunTest08,
 	RunTest09,
 	RunTest10,
+	RunTest11,
+	RunTest12,
 }
 
 // Dispatches calls
@@ -349,7 +351,7 @@ func RunTest07() bool {
 		return false
 	} else {
 		fmt.Printf("P was %v\n", punkt)
-		AssertIsTrue(punkt == 1, "P was not equal 1\n")
+		AssertIsTrue(punkt == 1, "P was not equal 1 (Case 1)\n")
 	}
 	//X=3 is corrupted.
 	set = []Point{{X: 1, Y: 563}, {X: 2, Y: 1125}, {X: 3, Y: 1686}, {X: 4, Y: 2249}}
@@ -359,7 +361,7 @@ func RunTest07() bool {
 		return false
 	} else {
 		fmt.Printf("P was %v\n", punkt)
-		AssertIsTrue(punkt == 1, "P was not equal 1\n")
+		AssertIsTrue(punkt == 1, "P was not equal 1 (Case 2)\n")
 	}
 	//X=2 is corrupted.
 	set = []Point{{X: 1, Y: 563}, {X: 2, Y: 112}, {X: 3, Y: 1687}, {X: 4, Y: 2249}}
@@ -369,7 +371,7 @@ func RunTest07() bool {
 		return false
 	} else {
 		fmt.Printf("P was %v\n", punkt)
-		AssertIsTrue(punkt == 1, "P was not equal 1\n")
+		AssertIsTrue(punkt == 1, "P was not equal 1 (Case 3)\n")
 	}
 	//X=1 is corrupted.
 	set = []Point{{X: 1, Y: 1}, {X: 2, Y: 1125}, {X: 3, Y: 1687}, {X: 4, Y: 2249}}
@@ -379,7 +381,7 @@ func RunTest07() bool {
 		return false
 	} else {
 		fmt.Printf("P was %v\n", punkt)
-		AssertIsTrue(punkt == 1, "P was not equal 1\n")
+		AssertIsTrue(punkt == 1, "P was not equal 1 (Case 4)\n")
 	}
 
 	return true
@@ -530,7 +532,7 @@ func RunTest10() bool {
 	rand.Seed(1)
 
 	// Log test
-	fmt.Println("--- Running test 3 ---")
+	fmt.Println("--- Running test 10 ---")
 	fmt.Println()
 
 	// Log what we're testing
@@ -538,7 +540,7 @@ func RunTest10() bool {
 	fmt.Println()
 
 	// Create test server
-	localTestServer := CreateNewServer(1, "Main Server", "10001", []string{"11001"}, []string{localIP, localIP}, 15, true, 1997)
+	localTestServer := CreateNewServer(1, "Main Server", "10001", []string{"11001"}, []string{localIP, localIP}, 5, true, 257)
 
 	time.Sleep(2 * time.Second)
 	// Spawn server
@@ -578,14 +580,15 @@ func RunTest10() bool {
 
 	// Wait for results
 	fmt.Println()
-	fmt.Printf("@@@ TEST 3: Waiting for results\n")
+	fmt.Printf("@@@ TEST 10: Waiting for results\n")
 	fmt.Println()
 
 	// Wait for local test server
 	res := localTestServer.WaitForResults()
 
 	fmt.Println()
-	fmt.Printf("@@@ TEST 3: Got results:\n\t%+v\n", res)
+	fmt.Printf("@@@ TEST 10: Got results:\n\t%+v\n", res)
+	fmt.Printf("@@@ Expected Result Yes: 3 No: 5\n")
 	fmt.Println()
 
 	// Wait 1s before passing/failing
@@ -597,6 +600,104 @@ func RunTest10() bool {
 	// Do asserts
 	return res.No == 5 && res.Yes == 3 && !res.Error
 
+}
+
+func RunTest11() bool {
+
+	fmt.Println("--- Running test 11 ---")
+	fmt.Println("--- Error Correction on 4 points ---")
+	fmt.Println()
+
+	set := []Point{{X: 1, Y: 154}, {X: 2, Y: 48}, {X: 3, Y: 199}, {X: 4, Y: 184}}
+
+	if punkt, e := CorrectError(set, 257); e != nil {
+		fmt.Printf("\033[31mAn Error Occured, it was: %v\033[37m\n", e)
+		return false
+	} else {
+		fmt.Printf("P was %v\n", punkt)
+		AssertIsTrue(punkt == 1, "P was not equal 1 (Case 1)\n")
+	}
+	return false
+}
+
+func RunTest12() bool {
+	// Init rand
+	rand.Seed(1)
+
+	// Log test
+	fmt.Println("--- Running test 12 ---")
+	fmt.Println()
+
+	// Log what we're testing
+	fmt.Println("Starting test-server")
+	fmt.Println()
+	// Create test server
+	localTestServer := CreateNewServer(1, "Main Server", "10001", []string{"11001"}, []string{localIP, localIP}, 25, true, 257)
+
+	time.Sleep(2 * time.Second)
+	// Spawn server
+	if _, e := TestUtil_SpawnTestProcess("-id", "2", "-mode", "server", "-name", "otherServer", "-port", "10002", "-pport", "11001,11002,11003", "-t", "15", "-s", "1"); e != nil {
+		fmt.Printf("second server failed Error was %v.\n", e)
+		return false
+	}
+
+	time.Sleep(2 * time.Second)
+	// Spawn server
+	if _, e := TestUtil_SpawnTestProcess("-id", "3", "-mode", "server", "-name", "ThirdServer", "-port", "10003", "-pport", "11001,11002,11003", "-t", "15", "-s", "1"); e != nil {
+		fmt.Printf("second server failed Error was %v.\n", e)
+		return false
+	}
+
+	time.Sleep(2 * time.Second)
+	// Spawn server with dishonest R values.
+	if _, e := TestUtil_SpawnTestProcess("-id", "4", "-mode", "server", "-name", "ForthServer-Baddie", "-port", "10004", "-pport", "11001,11002,11003", "-t", "15", "-s", "1", "-b", "1"); e != nil {
+		fmt.Printf("second server failed Error was %v.\n", e)
+		return false
+	}
+	// Wait 2s
+	fmt.Println()
+	fmt.Printf("@@@ TEST  10: Waiting 5s before spawning clients\n")
+	fmt.Println()
+	time.Sleep(5 * time.Second)
+
+	// Amount to test
+	clients := 50 //+ rand.Intn(587)
+
+	// Spawn voters
+	yesVoters := 0
+	for i := 0; i < clients; i++ {
+		vote := rand.Intn(2)
+		name := "nay" + fmt.Sprint(i-yesVoters)
+		if vote == 1 {
+			yesVoters++
+			name = "yay" + fmt.Sprint(yesVoters)
+		}
+		TestUtil_ClientVoteInstance(clientVote{id: fmt.Sprint(i), name: name, Vote: vote})
+	}
+
+	// Wait for results
+	fmt.Println()
+	fmt.Printf("@@@ TEST 12: Waiting for results\n")
+	fmt.Println()
+
+	// Wait for local test server
+	res := localTestServer.WaitForResults()
+
+	// Log how many we expect
+	fmt.Printf("We expect %v yes votes and %v no votes.\n", yesVoters, clients-yesVoters)
+
+	fmt.Println()
+	fmt.Printf("@@@ TEST 12 Got results:\n\t%+v\n", res)
+	fmt.Println()
+
+	// Wait 1s before passing/failing
+	time.Sleep(1 * time.Second)
+
+	// Halt server
+	localTestServer.Halt()
+
+	// Do asserts
+	return res.No == clients-yesVoters && res.Yes == yesVoters
 }
 
 func AssertIsTrue(condition bool, msg string) {

@@ -30,7 +30,7 @@ func main() {
 	flag.IntVar(&testcase, "i", -1, "Specify specific test to run. Value <= 0 will run all tests")
 	flag.IntVar(&vote, "v", rand.Intn(1-0)+0, "Specify how the client will vote (0/1). Default is false/no (0).")
 	flag.IntVar(&voteperiod, "t", 15, "Specify how long the voting period is in seconds.")
-	flag.IntVar(&p, "p", 1997, "Specify the prime number to generate secret.")
+	flag.IntVar(&p, "p", 257, "Specify the prime number to generate secret.")
 	flag.IntVar(&k, "k", 1, "Specify the amount of dishonest servers we are preparing for.")
 	flag.IntVar(&seed, "s", time.Now().Nanosecond(), "Specify the pseudo-random generator seed.")
 	flag.IntVar(&badmode, "b", -1, "Specify if server Should behave badly (ignore protocol, crash, etc.).")
