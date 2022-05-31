@@ -20,8 +20,9 @@ func HonestRSum(server *Server) int {
 	for _, v := range server.Clientsconnections {
 		if _, exists := server.VoterIntersection[v.Id]; exists {
 			fmt.Printf("[%s] Counting R-vote of %s\n", server.ID, v.Id)
-			RSum = RSum + v.RVal
+			RSum = pmod(RSum+v.RVal, server.P)
 		}
+
 	}
 	return RSum
 }
