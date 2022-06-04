@@ -15,14 +15,14 @@ The built executable file functions as both the server and client file. To run t
 ```cmd
 -mode server -id {SID} -pip {S2 IP, S3 IP} -pport {S2 Port, S3 Port} -port {Listen Port}
 ```
-For localised tests (running on the same machine) the `-pip` argument can also be dropped, as it will then use the local machine's IP. The server ID must be a valid ID, $SID\in\{0,1,2\}$. The accepted $r$-value for the server is then $SID+1$.
+For localised tests (running on the same machine) the `-pip` argument can also be dropped, as it will then use the local machine's IP. The server ID must be a valid ID, $SID\in{0,1,2}$. The accepted $r$-value for the server is then $SID+1$.
 
 ## Clients
 The client takes the arguments:
 ```cmd
 -mode client -id {ClientName} -port "{S1 Listen Port, S2 Listen Port, S3 Listen Port}" -v {Voting Value}
 ```
-With the Voting Value $\in\{0,1\}$. The client will use the local machine's IP when connecting. To specify another IP use `-ip "{S1 ip, S2 ip, S3 ip}"` to specify the IP of a specific server. That is, the server port and ip given with one command are are comma seperated. The order of the servers does not matter as the client will identify the servers on its own.
+With the Voting Value $\in{0,1}$. The client will use the local machine's IP when connecting. To specify another IP use `-ip "{S1 ip, S2 ip, S3 ip}"` to specify the IP of a specific server. That is, the server port and ip given with one command are are comma seperated. The order of the servers does not matter as the client will identify the servers on its own.
 
 # Running Tests
 The tests can be run with the following argument to the executable file.
@@ -46,7 +46,7 @@ This is a semi-*Deterministic* test.
 
 ### Test 4
 
-In test 4, a 250-voter vote is performed, but each client is voting randomly, where each vote is $\in\{0, 1\}, using a unique seed. 
+In test 4, a 250-voter vote is performed, but each client is voting randomly, where each vote is $\in\{0, 1\}$, using a unique seed. 
 This is a non-*Deterministic* test.
 
 ### Test 5
