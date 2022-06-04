@@ -5,7 +5,7 @@ import (
 	"math/rand"
 )
 
-// Secrifies the vote 'x' into three shares, using shamir sharing.
+// Secrifies the vote 'x' into three shares, using a polynomial of degree k
 // @x = The vote (in {0, 1})
 // @p = The prime number to limit Z-field (-p, p)
 // @k = The polynomium degree (amount of corrupt parties we allow)
@@ -67,56 +67,27 @@ func (a PointXSort) Len() int           { return len(a) }
 func (a PointXSort) Less(i, j int) bool { return a[i].X < a[j].X }
 func (a PointXSort) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
-// https://en.wikipedia.org/wiki/Shamir%27s_Secret_Sharing
-// Python translation
-
-// Finds greatest common divisor based on the extended Euclidean algorithm
-// https://en.wikipedia.org/wiki/Extended_Euclidean_algorithm
-// Keeping this just in case the Inver(a,n) is incorrect
-func GCD(a, b int) (int, int) {
-	x := 0
-	lx := 1
-	y := 1
-	ly := 0
-	for b != 0 {
-		q := a / b // floor division is default behaviour in Golang
-		a, b = b, pmod(a, b)
-		x, lx = lx-q*x, x
-		y, ly = ly-q*y, y
-	}
-	return lx, ly
-}
-
 // Finds the multiplicative inverse of a*t mod n (that is, find -t)
 // https://en.wikipedia.org/wiki/Extended_Euclidean_algorithm
 // Section on calculating the inverse
-func Inverse(a, n int) int {
-	t := 0
-	r := n
-	nt := 1
-	nr := a
+func Inverse(a, p int) int {
+	t, nt := 0, 1
+	r, nr := p, a
 	for nr != 0 {
-		q := r / nr
-		t, nt = nt, t-q*nt
+		q := r / nr // floor division is the default in Go, which Inverse uses
 		r, nr = nr, r-q*nr
+		t, nt = nt, t-q*nt
 	}
-	if r > 1 {
-		panic(fmt.Errorf("cannot invert %v given %v", a, n))
+	if r > p {
+		panic(fmt.Errorf("cannot invert %v given %v", a, p))
 	}
-	if t > 0 {
-		return -t // We need the inverse, so we want the negative value here
-	}
-	return t
+	return (1 / r) * t
 }
 
 // Computes n/d % p
 // Multiplicative inverse, which we need for staying in the field
 func DivMod(n, d, p int) int {
-	//inv, _ := GCD(d, p)
-	//inv2 := Inverse(d, p)
-	//fmt.Printf("inv = %v; inv2 = %v.\n", inv, inv2)
 	return n * Inverse(d, p)
-	//return n * Inverse(d, p)
 }
 
 // Computes the product of all integers in integer arrray

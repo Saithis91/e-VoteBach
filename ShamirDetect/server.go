@@ -38,15 +38,15 @@ type PartnerServer struct {
 	Id       string
 	ServerID uint8
 
-	// The secret share  // Is this needed?
-	//RVal int
-
 	// Gob encoder and deocer
 	Encoder *gob.Encoder
 	Decoder *gob.Decoder
 
 	//Common clientList
-	commonClientList bool
+	inCommonClientList bool
+
+	//Checked ClientList
+	comparedClients bool
 }
 
 type ConnectionMap map[string]*Voter
@@ -54,7 +54,7 @@ type ServerConnectionMap map[string]*PartnerServer
 
 // Function pointers for variability points
 type RSumPtr func(*Server) int
-type IntersectPtr func(*Server, []string) []string
+type IntersectPtr func(*Server, []string) ([]string, bool)
 
 // Struct for server instance
 type Server struct {
@@ -289,33 +289,36 @@ func (server *Server) HandleServerPartnerConnect(conn net.Conn, encoder gob.Enco
 			rm := newRequest.ToRMsg()
 			server.mutex.Lock()
 			fmt.Printf("[%s] Got a R-tally number from [%s]: %v.\n", server.ID, Pserver.Id, rm.Vote)
-			/*if !server.MainServer {
-				server.EndVotePeriod()
-			}*/
 			server.RPoints <- Point{X: int(Pserver.ServerID), Y: rm.Vote}
 			if !server.didSum {
 				server.EndVotePeriod()
 				server.didSum = true
 			}
-			if len(server.RPoints) >= 3 {
+			if len(server.RPoints) > server.serverThresshold {
 				server.DoTally()
 			}
 			server.mutex.Unlock()
 		case CLIENTLIST:
 			server.mutex.Lock()
-			common := server.IntersectFunc(server, newRequest.Strs)
-			Pserver.commonClientList = true
+			common := make([]string, 0)
+			common, Pserver.inCommonClientList = server.IntersectFunc(server, newRequest.Strs)
+			//fmt.Printf()
+			Pserver.comparedClients = true
 			server.VoterIntersection = CheckmapFromStringSlice(common)
 
 			flag := true
 			for _, p := range server.PartnerConns {
-				if !p.commonClientList {
-					flag = false
+				if p.comparedClients {
+					if p.inCommonClientList {
+						flag = false
+						fmt.Printf("[%v] didn't have common list with %v\n", server.ID, p.Id)
+					}
 				}
 			}
 			//Client list across 2 servers wasn't the same
 			if !flag {
 				//Tell other servers to abort
+				fmt.Printf("[%v]\033[31m Non common ClientList\033[0m\n", server.ID)
 				server.sendABORT("Non common clientList.")
 				// Inform clients of an error occured
 				tally := Results{
@@ -463,9 +466,6 @@ func (server *Server) WaitForResults() Results {
 		}
 	}
 
-	// terminate
-	//(*server.PartnerConn).Close()
-
 	for _, partner := range server.PartnerConns {
 		(*partner.Connection).Close()
 	}
@@ -489,8 +489,6 @@ func (server *Server) waitTime() {
 	// Log exit vote period
 	fmt.Printf("[%s] Voting period ended. Counting votes...\n", server.ID)
 
-	// End vote period
-	//server.EndVotePeriod()
 	//Cross reference that clints are the same across servers.
 	server.sendClients(server.getClients(server.Clientsconnections))
 }
