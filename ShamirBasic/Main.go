@@ -35,7 +35,7 @@ func main() {
 	flag.IntVar(&seed, "s", time.Now().Nanosecond(), "Specify the pseudo-random generator seed.")
 	flag.BoolVar(&waitForResults, "w", true, "Specify if client should *NOT* wait for results before terminating server connection.")
 	flag.BoolVar(&mainServer, "m", false, "Specify if server Should handle the first part of the secret.")
-	flag.BoolVar(&badvariant, "b", false, "Specify if server/client Should behave badly (ignore protocol, crash, etc.).")
+	flag.BoolVar(&badvariant, "b", false, "Specify if server/client Should behave badly (Fails to connect to a server).")
 	flag.Parse()
 
 	// Init rand
@@ -43,6 +43,10 @@ func main() {
 
 	switch mode {
 	case "server":
+		if p <= 3 { // A protocol for secure addition, page 13
+			fmt.Println("Invalid P-value. Must be greater than 3 (and prime).")
+			return
+		}
 		server := CreateNewServer(id, name, portlist, strings.Split(partnerPort, ","), strings.Split(partnerIP, ","), voteperiod, mainServer, p)
 		server.WaitForResults()
 	case "client":

@@ -28,7 +28,7 @@ type Voter struct {
 	Decoder *gob.Decoder
 }
 
-//Struct for a partner instance
+//Struct for a partner Server instance
 type PartnerServer struct {
 	// Connection to Server
 	Connection *net.Conn
@@ -36,9 +36,6 @@ type PartnerServer struct {
 	// ID
 	Id       string
 	ServerID uint8
-
-	// The secret share  // Is this needed?
-	//RVal int
 
 	// Gob encoder and deocer
 	Encoder *gob.Encoder
@@ -97,14 +94,16 @@ type Server struct {
 	// Flag marking if server is main (Handles R1 values)
 	MainServer bool
 
+	// Voters shared across servers
 	VoterIntersection StringHashSet
 
 	ClientListener *net.Listener
 	ServerListener *net.Listener
 
+	// How many servers to expect input from
 	serverThresshold int
 
-	//Summed the Votes
+	// Summed the Votes
 	didSum bool
 }
 
@@ -187,7 +186,7 @@ func (server *Server) HandleVoterConnection(conn *net.Conn) {
 
 	decoder := gob.NewDecoder(*conn)
 
-	//Cleans up after connection finish
+	// Cleans up after connection finish
 	defer (*conn).Close()
 
 	// Grab key
@@ -280,15 +279,15 @@ func (server *Server) HandleServerPartnerConnect(conn net.Conn, encoder gob.Enco
 			rm := newRequest.ToRMsg()
 			server.mutex.Lock()
 			fmt.Printf("[%s] Got a R-tally number from [%s]: %v.\n", server.ID, Pserver.Id, rm.Vote)
-			/*if !server.MainServer {
-				server.EndVotePeriod()
-			}*/
+
 			server.RPoints <- Point{X: int(Pserver.ServerID), Y: rm.Vote}
+			// Only do EndVotePeriod once
 			if !server.didSum {
 				server.EndVotePeriod()
 				server.didSum = true
 			}
-			if len(server.RPoints) >= 3 {
+			// If we have more RPoints, than the Thresshold, do the final tally.
+			if len(server.RPoints) > server.serverThresshold {
 				server.DoTally()
 			}
 			server.mutex.Unlock()
@@ -296,6 +295,7 @@ func (server *Server) HandleServerPartnerConnect(conn net.Conn, encoder gob.Enco
 			server.mutex.Lock()
 			checklist := CheckmapFromStringSlice(newRequest.Strs)
 			common := make([]string, 0)
+			// Check Intersection of Clients between 2 servers
 			for _, v := range server.Clientsconnections {
 				if _, exists := checklist[v.Id]; exists {
 					common = append(common, v.Id)
@@ -305,20 +305,21 @@ func (server *Server) HandleServerPartnerConnect(conn net.Conn, encoder gob.Enco
 			server.VoterIntersection = CheckmapFromStringSlice(common)
 			if server.MainServer {
 				flag := true
+				// If Main server got the Client intersection to all other servers, set flag to True
 				for _, p := range server.PartnerConns {
 					if !p.commonClientList {
 						flag = false
 					}
 				}
 				if flag {
-					// goto next step in process
+					// if flag = True, start computation of R-values
 					if !server.didSum {
 						server.EndVotePeriod()
 						server.didSum = true
 					}
 				}
 			} else {
-				// Send common to main
+				// Send common to other servers.
 				if !server.didSum {
 					server.sendClients(common)
 				}
@@ -327,6 +328,7 @@ func (server *Server) HandleServerPartnerConnect(conn net.Conn, encoder gob.Enco
 			server.mutex.Unlock()
 
 		case SERVERRESPONCE:
+			// Other server acknowledged the inter connection.
 			server.mutex.Lock()
 			sID := newRequest.ToServerJoinMsg()
 			fmt.Printf("[%s] Got Responce from partner server with ID: %s: %d.\n", server.ID, sID.ID, sID.serverID)
@@ -474,14 +476,11 @@ func (server *Server) waitTime() {
 
 func (server *Server) EndVotePeriod() {
 
-	fmt.Printf("[%s]: clients %s\n", server.ID, server.getClients(server.Clientsconnections))
-
 	// Tally up R-values
 	server.SelfRSum = 0
 	for _, v := range server.Clientsconnections {
 		if _, exists := server.VoterIntersection[v.Id]; exists {
-			fmt.Printf("[%s] Counting R-vote of %s\n", server.ID, v.Id)
-			server.SelfRSum = IMod(server.SelfRSum+v.RVal, server.P)
+			server.SelfRSum = pmod(server.SelfRSum+v.RVal, server.P)
 		}
 	}
 
@@ -513,9 +512,6 @@ func (server *Server) DoTally() {
 	// Define vars
 	var yes_vote, no_vote int
 
-	// Sanity check -> any votes?
-	//if Gf_Sum(a.Y, b.Y, c.Y).ToByte() > 0 {
-
 	// Define  array
 	points := []Point{a, b, c}
 	sort.Sort(PointXSort(points))
@@ -528,8 +524,6 @@ func (server *Server) DoTally() {
 
 	// Get nays
 	no_vote = len(server.VoterIntersection) - yes_vote
-
-	//}
 
 	// Log in struct
 	tally := Results{
