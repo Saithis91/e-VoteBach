@@ -15,10 +15,12 @@ func main() {
 	// Inform gob of magic type :D
 	gob.Register(Request{})
 
+	// Declare various arguments
 	var mode, id, partnerIP, selfPort, partnerPort, aPort, bPort, aIp, bIp string
 	var testcase, vote, voteperiod, p, seed int
 	var waitForResults, mainServer, badvariant bool
 
+	// Define flags to get arguments
 	flag.StringVar(&mode, "mode", "server", "Specify mode to run with.")
 	flag.StringVar(&id, "id", "Turing", "Specify the ID of the instance.")
 	flag.StringVar(&partnerIP, "pip", ip, "Specify the IP address of the partner server IP address. Default is localhost.")
@@ -35,17 +37,23 @@ func main() {
 	flag.IntVar(&seed, "s", time.Now().Nanosecond(), "Specify the pseudo-random generator seed.")
 	flag.BoolVar(&waitForResults, "w", true, "Specify if client should *NOT* wait for results before terminating server connection.")
 	flag.BoolVar(&mainServer, "m", false, "Specify if server Should handle the first part of the secret.")
-	flag.BoolVar(&badvariant, "b", false, "Specify if server/client Should behave badly (ignore protocol, crash, etc.).")
+	flag.BoolVar(&badvariant, "b", false, "Specify if server/client Should behave badly (client only connects to one server).")
 	flag.Parse()
 
 	// Init rand
 	rand.Seed(int64(seed))
 
 	switch mode {
+	// Creates a server with a valid Prime p, and lets it idle until it gets a result
 	case "server":
+		if p <= 3 { // A protocol for secure addition, page 13
+			fmt.Println("Invalid P-value. Must be greater than 3 (and prime).")
+			return
+		}
 		server := CreateNewServer(id, selfPort, partnerPort, partnerIP, voteperiod, mainServer)
 		server.P = p
 		server.WaitForResults()
+	// Creates a Client with valid Prime p, and specifies the behaviour.
 	case "client":
 		if vote < 0 || vote > 1 {
 			fmt.Println("Invalid vote. Must be an integer value of 0 or 1.")
@@ -80,6 +88,7 @@ func CreateNewClient(id, serverIPA, serverPortA, serverIPB, serverPortB string, 
 }
 
 func CreateNewServer(id, listenPort, parnterPort, partnerIP string, waitTime int, mainServer bool) *Server {
+	// Create Server, and initialies it to the specified values.
 	server := new(Server)
 	server.Initialise(id, ip, partnerIP, listenPort, parnterPort, waitTime, mainServer)
 	return server

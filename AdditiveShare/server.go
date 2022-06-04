@@ -205,10 +205,10 @@ func (server *Server) HandleVoterConnection(conn *net.Conn) {
 
 func (server *Server) HandleServerPartnerConnect() {
 
-	//Encoder and Decoder
+	// Decoder for the interServer connection
 	decoder := gob.NewDecoder(*server.PartnerConn)
 
-	//Cleans up after connection finish
+	// Cleans up after connection finish
 	defer (*server.PartnerConn).Close()
 
 	// Handle incoming from partner connection
@@ -310,7 +310,7 @@ func (server *Server) Initialise(id, selfIP, partnerIP, listenPort, partnerPort 
 	server.ListenPort = listenPort
 	server.PartnerPort = partnerPort
 
-	//Try connect to partner
+	// Try connect to partner
 	if !server.ConnectToServer(server.PartnerIP, server.PartnerPort) {
 		go server.InitServerSocket()
 	}
@@ -359,21 +359,16 @@ func (server *Server) waitTime() {
 	// Log exit vote period
 	fmt.Printf("[%s] Voting period ended. Counting votes...\n", server.ID)
 
-	// End vote period
-	//server.EndVotePeriod()
-	//Cross reference that clints are the same across servers.
+	// Cross reference that clints are the same across servers.
 	server.sendClients(server.getClients(server.Clientsconnections))
 }
 
 func (server *Server) EndVotePeriod() {
 
-	fmt.Printf("[%s]: clients %s\n", server.ID, server.getClients(server.Clientsconnections))
-
 	// Tally up R-values
 	server.SelfRSum = 0
 	for _, v := range server.Clientsconnections {
 		if _, exists := server.VoterIntersection[v.Id]; exists {
-			fmt.Printf("[%s] Counting R-vote of %s", server.ID, v.Id)
 			server.SelfRSum = Mod(server.SelfRSum+v.RVal, server.P)
 		}
 
@@ -426,7 +421,7 @@ func (server *Server) getClients(voters ConnectionMap) (strs []string) {
 	return
 }
 
-func (server *Server) sendClients(input []string) { //RMessage{Vote: server.SelfRSum}.ToRequest()
+func (server *Server) sendClients(input []string) {
 	e := server.PartnerEncoder.Encode(StringSlice{slice: input}.ToRequest())
 	if e != nil {
 		fmt.Printf("[%s]  %e\n", server.ID, e)

@@ -33,10 +33,6 @@ func (r Request) ToTallyMsg() Results {
 	return Results{Yes: r.Val1, No: r.Val2}
 }
 
-func (r Request) toStrinceSlice() StringSlice {
-	return StringSlice{slice: r.Strs}
-}
-
 // R-Vote Message (Client -> Server)
 type RMessage struct {
 	Vote int
