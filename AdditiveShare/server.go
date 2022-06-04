@@ -369,8 +369,9 @@ func (server *Server) EndVotePeriod() {
 	server.SelfRSum = 0
 	for _, v := range server.Clientsconnections {
 		if _, exists := server.VoterIntersection[v.Id]; exists {
-			server.SelfRSum += v.RVal
+			server.SelfRSum = Mod(server.SelfRSum+v.RVal, server.P)
 		}
+
 	}
 
 	// Log exit vote period

@@ -481,7 +481,7 @@ func (server *Server) EndVotePeriod() {
 	for _, v := range server.Clientsconnections {
 		if _, exists := server.VoterIntersection[v.Id]; exists {
 			fmt.Printf("[%s] Counting R-vote of %s\n", server.ID, v.Id)
-			server.SelfRSum = server.SelfRSum + v.RVal
+			server.SelfRSum = IMod(server.SelfRSum+v.RVal, server.P)
 		}
 	}
 
