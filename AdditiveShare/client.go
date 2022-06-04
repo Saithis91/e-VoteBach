@@ -38,7 +38,7 @@ func (client *Client) Init(id, serverIA, serverIB, serverPA, serverPB string, P 
 		if !bad {
 			panic(err) // Cannot complete protocol when one party is not available
 		} else {
-			fmt.Printf("[%s] Bad client failed connection (S1) and silently shutting off...", id)
+			fmt.Printf("[%s] Bad client failed connection (S1) and silently shutting off...\n", id)
 			return false
 		}
 	}
@@ -49,7 +49,7 @@ func (client *Client) Init(id, serverIA, serverIB, serverPA, serverPB string, P 
 		if !bad {
 			panic(err) // Cannot complete protocol when one party is not available
 		} else {
-			fmt.Printf("[%s] Bad client failed connection (S2) and silently shutting off...", id)
+			fmt.Printf("[%s] Bad client failed connection (S2) and silently shutting off...\n", id)
 			return false
 		}
 	}
@@ -83,7 +83,7 @@ func (client *Client) Init(id, serverIA, serverIB, serverPA, serverPB string, P 
 		if bad {
 			panic(fmt.Errorf("neither server was 'main' server"))
 		} else {
-			fmt.Printf("[%s] Bad client, neither server were main!...", id)
+			fmt.Printf("[%s] Bad client, neither server were main!...\n", id)
 			return false
 		}
 
@@ -204,6 +204,8 @@ func (client *Client) Shutdown(waitForResults bool) {
 
 }
 
+// Secrifies the secret 'x' using prime 'p'
+// Returns the secret shares r1 and r2
 func Secrify(x, p int) (r1, r2 int) {
 
 	// Pick R1 at random within the field of Z, upper bounded by P-1

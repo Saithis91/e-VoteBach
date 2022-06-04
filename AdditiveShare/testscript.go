@@ -35,6 +35,7 @@ var testCases = []func() bool{
 	RunTest03,
 	RunTest04,
 	RunTest05,
+	RunTest06,
 }
 
 // Dispatches calls
@@ -50,7 +51,7 @@ func DispatchTestCall(testID int) {
 			time.Sleep(time.Millisecond * 500)
 		}
 		fmt.Println()
-		fmt.Printf("--- Test Results: %v/%v passes ---", passes, len(testCases))
+		fmt.Printf("\033[32m--- Test Results: %v/%v passes ---\033[0m", passes, len(testCases))
 		fmt.Println()
 		return
 	}
@@ -63,9 +64,9 @@ func DispatchTestCall(testID int) {
 
 func CheckTest(id int, res bool) {
 	if res {
-		fmt.Printf("--- TEST %v PASS ---\n", id)
+		fmt.Printf("\033[32m--- TEST %v PASS ---\033[0m\n", id)
 	} else {
-		fmt.Printf("--- TEST %v FAIL ---\n", id)
+		fmt.Printf("\033[31m--- TEST %v FAIL ---\033[0m\n", id)
 	}
 }
 
@@ -204,7 +205,7 @@ func RunTest03() bool {
 	localTestServer := CreateNewServer("Main Server", "11000", "11001", localIP, 15, true)
 	localTestServer.P = 991
 
-	// Spawn server
+	// Spawn partner server
 	if _, e := TestUtil_SpawnTestProcess("-mode", "server", "-id", "otherServer", "-port", "11002", "-pport", "11001", "-t", "15", "-s", "1"); e != nil {
 		fmt.Printf("second server failed Error was %v.\n", e)
 		return false
@@ -259,7 +260,7 @@ func RunTest04() bool {
 
 	// Log what we're testing
 	fmt.Println("Starting test-server - vote period is 15 seconds.")
-	fmt.Println("Test 100 voters where everything is random.")
+	fmt.Println("Test 250 voters where everything is random.")
 	fmt.Println()
 
 	// Create test server
@@ -279,7 +280,7 @@ func RunTest04() bool {
 	time.Sleep(5 * time.Second)
 	yayvoters := 0
 	i := 0
-	for i < 100 {
+	for i < 250 {
 		v := rand.Intn(2)
 		yayvoters += v
 		TestUtil_ClientVoteInstance(clientVote{Id: fmt.Sprintf("voter %v", (i + 1)), Vote: v})
@@ -311,11 +312,73 @@ func RunTest04() bool {
 
 func RunTest05() bool {
 
+	// Init Truely rand
+	rand.Seed(int64(time.Now().UnixNano()))
+
+	// Log test
+	fmt.Println("--- Running test 5 ---")
+	fmt.Println()
+
+	// Log what we're testing
+	fmt.Println("Starting test-server - vote period is 15 seconds.")
+	fmt.Println("Test M voters where everything is random.")
+	fmt.Println()
+
+	// Create test server
+	localTestServer := CreateNewServer("Main Server", "11000", "11001", localIP, 30, true)
+	localTestServer.P = 991
+
+	// Spawn server
+	if _, e := TestUtil_SpawnTestProcess("-mode", "server", "-id", "otherServer", "-port", "11002", "-pport", "11001", "-t", "30", "-s", "1"); e != nil {
+		fmt.Printf("second server failed Error was %v.\n", e)
+		return false
+	}
+
+	// Wait 2s
+	fmt.Println()
+	fmt.Printf("@@@ TEST 5: Waiting 5s before spawning clients\n")
+	fmt.Println()
+	time.Sleep(5 * time.Second)
+	yayvoters := 0
+	yeoldVoters := 251 + rand.Intn(localTestServer.P-251)
+	i := 0
+	for i < yeoldVoters {
+		v := rand.Intn(2)
+		yayvoters += v
+		TestUtil_ClientVoteInstance(clientVote{Id: fmt.Sprintf("voter %v", (i + 1)), Vote: v})
+		i++
+	}
+
+	// Wait for results
+	fmt.Println()
+	fmt.Printf("@@@ TEST 5: Waiting for results\n")
+	fmt.Println()
+
+	// Wait for local test server
+	res := localTestServer.WaitForResults()
+
+	fmt.Println()
+	fmt.Printf("@@@ TEST 5: Got results:\n\t%+v\n", res)
+	fmt.Println()
+
+	// Wait 1s before passing/failing
+	time.Sleep(1 * time.Second)
+
+	// Halt server
+	localTestServer.Halt()
+
+	// Do asserts
+	return res.No == i-yayvoters && res.Yes == yayvoters
+
+}
+
+func RunTest06() bool {
+
 	// Init rand
 	rand.Seed(1)
 
 	// Log test
-	fmt.Println("--- Running test 5 ---")
+	fmt.Println("--- Running test 6 ---")
 	fmt.Println()
 
 	// Log what we're testing
@@ -335,7 +398,7 @@ func RunTest05() bool {
 
 	// Wait 2s
 	fmt.Println()
-	fmt.Printf("@@@ TEST 5: Waiting 5s before spawning clients\n")
+	fmt.Printf("@@@ TEST 6: Waiting 5s before spawning clients\n")
 	fmt.Println()
 	time.Sleep(5 * time.Second)
 
@@ -345,14 +408,14 @@ func RunTest05() bool {
 
 	// Wait for results
 	fmt.Println()
-	fmt.Printf("@@@ TEST 5: Waiting for results\n")
+	fmt.Printf("@@@ TEST 6: Waiting for results\n")
 	fmt.Println()
 
 	// Wait for local test server
 	res := localTestServer.WaitForResults()
 
 	fmt.Println()
-	fmt.Printf("@@@ TEST 5: Got results:\n\t%+v\n", res)
+	fmt.Printf("@@@ TEST 6: Got results:\n\t%+v\n", res)
 	fmt.Println()
 
 	// Wait 1s before passing/failing
@@ -415,14 +478,5 @@ func TestUtil_SpawnTestProcess(args ...string) (*exec.Cmd, error) {
 		// Add to process list so we can ensure it is closed
 		db_spawnedProcceses = append(db_spawnedProcceses, proc.Process)
 	}
-	return proc, e
-}
-
-func TestUtil_KillTestProcess(args ...string) (*exec.Cmd, error) {
-	fmt.Printf("[TestUtil] Killing off Hellspawn: %v\n", args)
-	proc := exec.Command("pkill", "voting")
-	proc.Stdout = os.Stdout
-	proc.Stderr = os.Stderr
-	e := proc.Start()
 	return proc, e
 }
