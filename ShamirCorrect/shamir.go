@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"math"
 	"math/rand"
 )
 
@@ -55,9 +54,6 @@ type PointXSort []Point
 func (a PointXSort) Len() int           { return len(a) }
 func (a PointXSort) Less(i, j int) bool { return a[i].X < a[j].X }
 func (a PointXSort) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-
-// https://en.wikipedia.org/wiki/Shamir%27s_Secret_Sharing
-// Python translation
 
 // Computes the product of all integers in integer arrray
 // p = vals[1] * vals[2] * ... * vals[n]
@@ -125,16 +121,7 @@ func Lagrange(x, p int, points []Point) int {
 // and computes L(0, (x,y)'...). If the correction fails, an error is returned.
 func CorrectError(points []Point, prime int) (int, error) {
 
-	// Create system of linear equations
-	/*A := make(Matrix, len(points))
-	B := make(Vector, len(points))
-	for i := 0; i < len(points); i++ {
-		x := points[i].X
-		y := points[i].Y
-		A[i] = Vector{float64(IPow(x, 2)), float64(x), 1.0, float64(y)}
-		B[i] = float64(y * x)
-	}*/
-
+	// Construct system of linear equations
 	A := make(IntMatrix, len(points))
 	B := make(IntVector, len(points))
 	for i := 0; i < len(points); i++ {
@@ -145,40 +132,20 @@ func CorrectError(points []Point, prime int) (int, error) {
 	}
 
 	// Apply gauss
-	fmt.Printf("%v : %v\n", A, B)
-	//Y := GaussElim(A, B)
-	Y := GaussElimField(A, B, prime)
-	//Y := GaussElimInt(A, B)
+	Y := GaussElim(A, B, prime)
 
-	// Grab E:
-	//e := int(math.Round(Y[len(Y)-1])) - 1
+	// Grab error value
+	e := Y[3]
 
-	// Verify in line
-	//if e >= 0 && e < len(points) {
-	// Remove error coordinate
-	//pp := append(points[:e], points[e+1:]...)
-	//fmt.Printf("pp was: %v\n", pp)
-	fmt.Printf("\033[31mError was in point: %v\nSolution vector: %v\n\033[37m", Y[3], Y)
+	// Verify e
+	if e < 1 || e > len(points) {
+		return -1, fmt.Errorf("invalid error index found")
+	}
 
-	// Recreate P(X) for X = 0
-	q_0 := Y[2] //Y[0]*math.Pow(0, 2) + Y[1]*0 + Y[2]
-	//e_0 := (0 - Y[3])
-	e_0 := SubField(0, Y[3], prime)
-	//tmpSolution := q_0 / e_0
-	//tmpSolution := DivMod(q_0, e_0, prime)
-	tmpSolution := Lagrange(0, prime, append(points[0:Y[3]-1], points[Y[3]:]...))
-	tmpSolution2 := int(math.Round(float64(q_0 / e_0)))
-	fmt.Printf("Final value was: %v (or %v)\n", tmpSolution, tmpSolution2)
-	return tmpSolution, nil
+	// Redo Lagrange without error point
+	correct := Lagrange(0, prime, append(points[0:e-1], points[e:]...))
 
-	// Return interpolation without 'e'
-	//return Lagrange(0, prime, pp), nil
-
-	/*} else {
-
-		// Return -1 one and an error
-		return -1, fmt.Errorf("failed to correct error, e=%v, which is outside point range (may be no errors in point set), Y=%v", e, Y)
-
-	}*/
+	// Return correct vote sum and no error
+	return correct, nil
 
 }
