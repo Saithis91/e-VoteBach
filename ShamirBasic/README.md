@@ -46,7 +46,7 @@ This is a semi-*Deterministic* test.
 
 ### Test 4
 
-In test 4, a 250-voter vote is performed, but each client is voting randomly, where each vote is $\in\{0, 1\}, using a unique seed. 
+In test 4, a 250-voter vote is performed, but each client is voting randomly, where each vote is $\in\{0, 1\}$, using a unique seed. 
 This is a non-*Deterministic* test.
 
 ### Test 5
