@@ -49,6 +49,9 @@ func CorruptRSum(server *Server) int {
 func HonestIntersection(server *Server, input []string) ([]string, bool) {
 	checklist := CheckmapFromStringSlice(input)
 	common := make([]string, 0)
+	if len(checklist) != len(server.Clientsconnections) {
+		return common, true
+	}
 	err := false
 	for _, v := range server.Clientsconnections {
 		if _, exists := checklist[v.Id]; exists {
@@ -63,14 +66,13 @@ func HonestIntersection(server *Server, input []string) ([]string, bool) {
 // Corrupt behaviour
 func CorruptIntersection(server *Server, input []string) ([]string, bool) {
 
-	mode := rand.Intn(3)
+	mode := rand.Intn(2)
 	if mode == 0 {
 		fmt.Println("[BadServer] Returned an empty List")
 		return make([]string, 0), false
 	} else if mode == 1 {
 		common, _ := HonestIntersection(server, input)
-		size := 1 //rand.Intn(len(common))
-		fmt.Printf("[BadServer] reduced the ClientList by %v\n", size)
+		size := rand.Intn(len(common))
 		common = common[:size]
 		fmt.Printf("[BadServer] reduced the ClientList by %v to %v\n", size, common)
 
@@ -78,12 +80,10 @@ func CorruptIntersection(server *Server, input []string) ([]string, bool) {
 	}
 
 	common, _ := HonestIntersection(server, input)
-	if len(common) > 0 {
-		size := rand.Intn(len(common))
-		fmt.Printf("[BadServer] increased the ClientList by %v to %v\n", size, common)
-		for i := 0; i < size; i++ {
-			common = append(common, fmt.Sprintf("Bogus%v", i))
-		}
+	size := rand.Intn(len(common))
+	for i := 0; i < size; i++ {
+		common = append(common, fmt.Sprintf("Bogus%v", i))
 	}
+	fmt.Printf("[BadServer] increased the ClientList by %v to %v\n", size, common)
 	return common, false
 }

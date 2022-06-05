@@ -162,7 +162,7 @@ func RunTest02() bool {
 
 	time.Sleep(2 * time.Second)
 	// Spawn server
-	if _, e := TestUtil_SpawnTestProcess("-id", "3", "-mode", "server", "-name", "BadThirdServer", "-port", "10002", "-pport", "11001,11002", "-t", "15", "-s", "1", "-b", "1"); e != nil {
+	if _, e := TestUtil_SpawnTestProcess("-id", "3", "-mode", "server", "-name", "ThirdServer-Baddie", "-port", "10002", "-pport", "11001,11002", "-t", "15", "-s", "1", "-b", "1"); e != nil {
 		fmt.Printf("second server failed Error was %v.\n", e)
 		return false
 	}
@@ -226,7 +226,7 @@ func RunTest03() bool {
 
 	time.Sleep(2 * time.Second)
 	// Spawn server
-	if _, e := TestUtil_SpawnTestProcess("-id", "3", "-mode", "server", "-name", "BadThirdServer", "-port", "10002", "-pport", "11001,11002", "-t", "15", "-s", "1", "-b", "0"); e != nil {
+	if _, e := TestUtil_SpawnTestProcess("-id", "3", "-mode", "server", "-name", "ThirdServer-Baddie", "-port", "10002", "-pport", "11001,11002", "-t", "15", "-s", "1", "-b", "0"); e != nil {
 		fmt.Printf("second server failed Error was %v.\n", e)
 		return false
 	}
