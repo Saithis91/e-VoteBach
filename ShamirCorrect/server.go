@@ -46,7 +46,7 @@ type PartnerServer struct {
 	Decoder *gob.Decoder
 
 	//Common clientList
-	commonClientList bool
+	nonCommonClientList bool
 
 	//Checked ClientList
 	comparedClients bool
@@ -57,7 +57,7 @@ type ServerConnectionMap map[string]*PartnerServer
 
 // Function pointers for variability points
 type RSumPtr func(*Server) int
-type IntersectPtr func(*Server, []string) []string
+type IntersectPtr func(*Server, []string) ([]string, bool)
 
 // Struct for server instance
 type Server struct {
@@ -309,23 +309,25 @@ func (server *Server) HandleServerPartnerConnect(conn net.Conn, encoder gob.Enco
 			server.mutex.Unlock()
 		case CLIENTLIST:
 			server.mutex.Lock()
-			common := server.IntersectFunc(server, newRequest.Strs)
+			common := make([]string, 0)
+			common, Pserver.nonCommonClientList = server.IntersectFunc(server, newRequest.Strs)
 			Pserver.comparedClients = true
-			Pserver.commonClientList = true
 			server.VoterIntersection = CheckmapFromStringSlice(common)
+			clientComparedThresshold := 0
 			flag := true
 			for _, p := range server.PartnerConns {
 				if p.comparedClients {
-					if !p.commonClientList {
+					clientComparedThresshold += 1
+					if p.nonCommonClientList {
 						flag = false
-						fmt.Printf("[%v] didn't have common list with %v\n", server.ID, p.Id)
+						fmt.Printf("[%v]\033[31m Non-Common List with %v\033[0m\n", server.ID, p.Id)
 					}
 				}
 			}
 			//Client list across 2 servers wasn't the same
 			if !flag {
 				//Tell other servers to abort
-				server.sendABORT("Non common clientList.")
+				server.sendABORT("Non-common clientList.")
 				// Inform clients of an error occured
 				tally := Results{
 					Yes:   0,
@@ -333,8 +335,7 @@ func (server *Server) HandleServerPartnerConnect(conn net.Conn, encoder gob.Enco
 					Error: true,
 				}
 				server.Tally <- tally
-				//Client list across all servers was the same.
-			} else if server.MainServer {
+			} else if server.MainServer && clientComparedThresshold == server.serverThresshold {
 				// goto next step in process
 				if !server.didSum {
 					server.EndVotePeriod()
@@ -374,6 +375,7 @@ func (server *Server) HandleServerPartnerConnect(conn net.Conn, encoder gob.Enco
 				Error: true,
 			}
 			server.Tally <- tally
+			server.mutex.Unlock()
 		}
 
 	}
@@ -649,7 +651,7 @@ func (server *Server) Halt() {
 }
 
 func (server *Server) getClients(voters ConnectionMap) (strs []string) {
-	keys := make([]string, len(voters))
+	keys := make([]string, 0)
 	for _, v := range voters {
 		keys = append(keys, v.Id)
 	}
@@ -661,7 +663,7 @@ func (server *Server) sendClients(input []string) {
 	//fmt.Printf("[%v] Client list was [%v]\n", server.ServerID, input)
 	for _, partner := range server.PartnerConns {
 		e := partner.Encoder.Encode(StringSlice{slice: input}.ToRequest())
-		if e != nil {
+		if e == nil {
 			fmt.Printf("[%s] Sending clients %e to %s\n", server.ID, e, partner.Id)
 		}
 	}
@@ -670,8 +672,8 @@ func (server *Server) sendClients(input []string) {
 func (server *Server) sendABORT(reason string) {
 	for _, partner := range server.PartnerConns {
 		e := partner.Encoder.Encode(ABORTmessage{Message: reason, ServerID: server.ServerID}.ToRequest())
-		if e != nil {
-			fmt.Printf("[%s] Sending Abort message %e to %s\n", server.ID, e, partner.Id)
+		if e == nil {
+			fmt.Printf("[%s] Sending Abort message to %s\n", server.ID, partner.Id)
 		}
 	}
 }
