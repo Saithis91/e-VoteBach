@@ -29,3 +29,7 @@ This is a non-*Deterministic* test.
 ### Test 4
 In test 4 a "real world" situation is tested and spawns several clients and decides at random if an error (related to R values) should occur. 
 This is a fully non-*Deterministic* test.
+
+### Test 5
+In test 5 the correction for $R_i\notin Z_p$ is tested.
+This is a *Deterministic* test.

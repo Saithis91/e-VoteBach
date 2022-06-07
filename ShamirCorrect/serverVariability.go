@@ -27,22 +27,26 @@ func HonestRSum(server *Server) int {
 	return RSum
 }
 
-// Do corrupt R-sum -> pick one of four options
-func CorruptRSum(server *Server) int {
-	mode := 2 // rand.Intn(4)
+// Do corrupt R-sum based on mode
+func CorruptRSumDet(server *Server, mode int) int {
 	if mode == 0 {
-		fmt.Printf("\033[31m[BadServer] Corrupting sum to P-value: %v.\n\033[37m", server.P)
+		fmt.Printf("[BadServer] \033[31mCorrupting sum to P-value: %v.\033[0m\n", server.P)
 		return server.P // simply return p
 	} else if mode == 1 {
-		fmt.Printf("\033[31m[BadServer] Corrupting sum to honest sum +- random offset: %v.\n\033[37m", server.P)
-		return pmod(HonestRSum(server)+(rand.Intn(server.P*2)-server.P), server.P) // Some random offset from honest r-sum (this may be an OK)
+		fmt.Printf("[BadServer] \033[31mCorrupting sum to honest sum +- random offset: %v.\033[0m\n", server.P)
+		return HonestRSum(server) + (rand.Intn(server.P*2) - server.P) // Some random offset from honest r-sum (this may be an OK)
 	} else if mode == 2 {
-		fmt.Printf("\033[31m[BadServer] Corrupting sum to random upper-bounded P-value: %v.\n\033[37m", server.P)
+		fmt.Printf("[BadServer] \033[31mCorrupting sum to random upper-bounded P-value: %v.\033[0m\n", server.P)
 		return rand.Intn(server.P) // random number in field (this may be an OK)
 	} else {
-		fmt.Printf("\033[31m[BadServer] Corrupting sum to random negative bounded P-value: %v.\n\033[37m", server.P)
+		fmt.Printf("[BadServer] \033[31mCorrupting sum to random negative bounded P-value: %v.\033[0m\n", server.P)
 		return -rand.Intn(server.P) // Outside of field
 	}
+}
+
+// Do corrupt R-sum -> pick one of four options
+func CorruptRSum(server *Server) int {
+	return CorruptRSumDet(server, rand.Intn(4))
 }
 
 // Intersection behaviours

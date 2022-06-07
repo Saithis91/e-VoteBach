@@ -547,6 +547,16 @@ func Pop(ints []int, i int) (int, []int) {
 	return rval, append(ints[:j], ints[j+1:]...)
 }
 
+func AllInField(points []Point, p int) (bool, []int) {
+	errs := make([]int, 0)
+	for i := 0; i < len(points); i++ {
+		if points[i].Y > p || points[i].Y < 0 {
+			errs = append(errs, i)
+		}
+	}
+	return len(errs) == 0, errs
+}
+
 func argmin(a, b int) int {
 	if a < b {
 		return a
@@ -554,11 +564,15 @@ func argmin(a, b int) int {
 	return b
 }
 
-func argMax(a, b int) int {
+func argmax(a, b int) int {
 	if a > b {
 		return a
 	}
 	return b
+}
+
+func without(ints []int, e int) []int {
+	return append(ints[0:e], ints[e+1:]...)
 }
 
 func (server *Server) DoTally() {
@@ -572,35 +586,108 @@ func (server *Server) DoTally() {
 	// Define yes vote (it may vary how we get it)
 	var yes_vote int
 
-	// Define  array
-	points := []Point{a, b, c, d}
+	// Define tally object
+	var tally Results
+	var sample_set []Point
 
+	// Define flag for outside field
+	hadOutside := false
+
+	// Define array and order by X-coord
+	points := []Point{a, b, c, d}
 	sort.Sort(PointXSort(points))
 
 	// Log points
 	fmt.Printf("[%s] My points for lagrange interpolation is: %v.\n", server.ID, points)
 
-	// Pick alpha points given our server ID
-	a1, tmp := Pop([]int{0, 1, 2, 3}, int(server.ServerID)-1)
-	a2, tmp := Pop(tmp, -1)
-	a3, tmp := Pop(tmp, -1)
-	a4, _ := Pop(tmp, -1)
+	// Define array of alpha values
+	alphas := make([]int, len(points))
 
-	// Define tally object
-	var tally Results
+	// Define max alpha (the check point)
+	var alpha_max int
 
-	// Define set of sample points
-	sample_set := []Point{points[a1], points[a2], points[argmin(a3, a4)]}
-	sort.Sort(PointXSort(sample_set))
+	// Verify all fall within field
+	if inside, e := AllInField(points, server.P); !inside {
+		fmt.Printf("[%s] \033[31mDetected %v point(s) outside the field!\033[0m\n", server.ID, len(e))
+		for _, v := range e {
+			fmt.Printf("[%s] \033[31mPoint %v is outside the field and is invalid!\033[0m\n", server.ID, points[v])
+		}
+		if len(e) > 1 {
+			fmt.Printf("[%s] \033[31mDetected too many points outside field and aborting!\033[0m\n", server.ID)
+			// Log in struct
+			server.Tally <- Results{
+				Yes:   0,
+				No:    -1,
+				Error: true,
+			}
+			// Return
+			return
+		}
+
+		// Set outside flag to true
+		hadOutside = true
+
+		// Define temp
+		tmp := without([]int{0, 1, 2, 3}, e[0])
+		alphas[0], tmp = Pop(tmp, int(server.ServerID)-1) // Note, this will likely crash the simulated bad server
+		alphas[1], tmp = Pop(tmp, -1)
+		alpha_max, _ = Pop(tmp, -1)
+
+		// Define set of sample points
+		sample_set = []Point{points[alphas[0]], points[alphas[1]]}
+		sort.Sort(PointXSort(sample_set))
+
+	} else {
+
+		// Log all points valid
+		fmt.Printf("[%s] \033[32mAll points are in the field\033[0m\n", server.ID)
+
+		// Define temp
+		var tmp []int
+
+		// Pick alpha points given our server ID
+		alphas[0], tmp = Pop([]int{0, 1, 2, 3}, int(server.ServerID)-1)
+		alphas[1], tmp = Pop(tmp, -1)
+		alphas[2], tmp = Pop(tmp, -1)
+		alphas[3], _ = Pop(tmp, -1)
+		fmt.Printf("[%s] alphas=%+v.\n", server.ID, alphas)
+
+		// Grab min and max alpha points
+		alpha_max = argmax(alphas[2], alphas[3])
+
+		// Define set of sample points
+		sample_set = []Point{points[alphas[0]], points[alphas[1]], points[argmin(alphas[2], alphas[3])]}
+		sort.Sort(PointXSort(sample_set))
+
+	}
 
 	// Log points
 	fmt.Printf("[%s] My sample points for lagrange interpolation is: %v.\n", server.ID, sample_set)
 
 	// Try compute other point, given selection
-	if p := Lagrange(argMax(a3, a4)+1, server.P, sample_set); p != points[argMax(a3, a4)].Y {
+	if y := Lagrange(alpha_max+1, server.P, sample_set); y != points[alpha_max].Y {
 
 		// Log
-		fmt.Printf("[%s] Error - Point %v is not a point on polynomium, but %v is. Attempting to correct\n", server.ID, points[a4], p)
+		fmt.Printf("[%s] \033[31mError - Point %v is not a point on polynomium, got L(%v)=%v. Attempting to correct.\033[0m\n", server.ID, points[alpha_max], alpha_max+1, y)
+
+		// If we had outside, we cannot do this (because k > 1)
+		if hadOutside {
+
+			fmt.Printf("[%s] Error - failed to recover, more corrupt servers than expected.\n", server.ID)
+
+			// Log in struct
+			tally = Results{
+				Yes:   0,
+				No:    -2,
+				Error: true,
+			}
+
+			// Enter into channel
+			server.Tally <- tally
+
+			return
+
+		}
 
 		// We now try to recover
 		var err error
@@ -609,8 +696,8 @@ func (server *Server) DoTally() {
 
 			// Log in struct
 			tally = Results{
-				Yes:   yes_vote,
-				No:    -1,
+				Yes:   0,
+				No:    -3,
 				Error: true,
 			}
 

@@ -35,6 +35,7 @@ var testCases = []func() bool{
 	RunTest02,
 	RunTest03,
 	RunTest04,
+	RunTest05,
 }
 
 // Dispatches calls
@@ -80,7 +81,7 @@ func RunTest01() bool {
 	rand.Seed(1)
 
 	// Log test
-	fmt.Println("--- Running test 01 ---")
+	fmt.Println("--- Running test 1 ---")
 	fmt.Println()
 
 	// Log what we're testing
@@ -100,19 +101,19 @@ func RunTest01() bool {
 	time.Sleep(2 * time.Second)
 	// Spawn server
 	if _, e := TestUtil_SpawnTestProcess("-id", "3", "-mode", "server", "-name", "ThirdServer", "-port", "10003", "-pport", "11001,11002,11003", "-t", "15", "-s", "1"); e != nil {
-		fmt.Printf("second server failed Error was %v.\n", e)
+		fmt.Printf("third server failed Error was %v.\n", e)
 		return false
 	}
 
 	time.Sleep(2 * time.Second)
 	// Spawn server
-	if _, e := TestUtil_SpawnTestProcess("-id", "4", "-mode", "server", "-name", "ForthServer", "-port", "10004", "-pport", "11001,11002,11003", "-t", "15", "-s", "1"); e != nil {
-		fmt.Printf("second server failed Error was %v.\n", e)
+	if _, e := TestUtil_SpawnTestProcess("-id", "4", "-mode", "server", "-name", "fourthServer", "-port", "10004", "-pport", "11001,11002,11003", "-t", "15", "-s", "1"); e != nil {
+		fmt.Printf("fourth server failed Error was %v.\n", e)
 		return false
 	}
 
 	fmt.Println()
-	fmt.Printf("@@@ TEST  01: Waiting 5s before spawning clients\n")
+	fmt.Printf("@@@ TEST  1: Waiting 5s before spawning clients\n")
 	fmt.Println()
 	time.Sleep(5 * time.Second)
 
@@ -128,7 +129,7 @@ func RunTest01() bool {
 
 	// Wait for results
 	fmt.Println()
-	fmt.Printf("@@@ TEST 01: Waiting for results\n")
+	fmt.Printf("@@@ TEST 1: Waiting for results\n")
 	fmt.Println()
 
 	// Wait for local test server
@@ -151,7 +152,7 @@ func RunTest02() bool {
 	rand.Seed(1)
 
 	// Log test
-	fmt.Println("--- Running test 02 ---")
+	fmt.Println("--- Running test 2 ---")
 	fmt.Println("--- With Dishonest R-value ---")
 	fmt.Println()
 
@@ -172,19 +173,19 @@ func RunTest02() bool {
 	time.Sleep(2 * time.Second)
 	// Spawn server
 	if _, e := TestUtil_SpawnTestProcess("-id", "3", "-mode", "server", "-name", "ThirdServer", "-port", "10003", "-pport", "11001,11002,11003", "-t", "15", "-s", "1"); e != nil {
-		fmt.Printf("second server failed Error was %v.\n", e)
+		fmt.Printf("third server failed Error was %v.\n", e)
 		return false
 	}
 
 	time.Sleep(2 * time.Second)
 	// Spawn server with dishonest R values.
-	if _, e := TestUtil_SpawnTestProcess("-id", "4", "-mode", "server", "-name", "ForthServer-Baddie", "-port", "10004", "-pport", "11001,11002,11003", "-t", "15", "-s", "1", "-b", "1"); e != nil {
-		fmt.Printf("second server failed Error was %v.\n", e)
+	if _, e := TestUtil_SpawnTestProcess("-id", "4", "-mode", "server", "-name", "fourthServer-Baddie", "-port", "10004", "-pport", "11001,11002,11003", "-t", "15", "-s", "1", "-b", "1"); e != nil {
+		fmt.Printf("fourth server failed Error was %v.\n", e)
 		return false
 	}
 
 	fmt.Println()
-	fmt.Printf("@@@ TEST  02: Waiting 5s before spawning clients\n")
+	fmt.Printf("@@@ TEST  2: Waiting 5s before spawning clients\n")
 	fmt.Println()
 	time.Sleep(5 * time.Second)
 
@@ -200,7 +201,7 @@ func RunTest02() bool {
 
 	// Wait for results
 	fmt.Println()
-	fmt.Printf("@@@ TEST 02: Waiting for results\n")
+	fmt.Printf("@@@ TEST 2: Waiting for results\n")
 	fmt.Println()
 
 	// Wait for local test server
@@ -223,7 +224,7 @@ func RunTest03() bool {
 	rand.Seed(int64(time.Now().Nanosecond()))
 
 	// Log test
-	fmt.Println("--- Running test 03 ---")
+	fmt.Println("--- Running test 3 ---")
 	fmt.Println()
 
 	// Log what we're testing
@@ -236,14 +237,14 @@ func RunTest03() bool {
 	time.Sleep(2 * time.Second)
 	// Spawn server
 	if _, e := TestUtil_SpawnTestProcess("-id", "2", "-mode", "server", "-name", "otherServer", "-port", "10002", "-pport", "11001,11002,11003", "-t", "15", "-s", "1"); e != nil {
-		fmt.Printf("second server failed Error was %v.\n", e)
+		fmt.Printf("third server failed Error was %v.\n", e)
 		return false
 	}
 
 	time.Sleep(2 * time.Second)
 	// Spawn server
 	if _, e := TestUtil_SpawnTestProcess("-id", "3", "-mode", "server", "-name", "ThirdServer", "-port", "10003", "-pport", "11001,11002,11003", "-t", "15", "-s", "1"); e != nil {
-		fmt.Printf("second server failed Error was %v.\n", e)
+		fmt.Printf("fourth server failed Error was %v.\n", e)
 		return false
 	}
 
@@ -251,12 +252,12 @@ func RunTest03() bool {
 	serverCorrupted := rand.Intn(2)
 	// Spawn server.
 	if serverCorrupted == 0 {
-		if _, e := TestUtil_SpawnTestProcess("-id", "4", "-mode", "server", "-name", "ForthServer", "-port", "10004", "-pport", "11001,11002,11003", "-t", "15", "-s", "1"); e != nil {
+		if _, e := TestUtil_SpawnTestProcess("-id", "4", "-mode", "server", "-name", "fourthServer", "-port", "10004", "-pport", "11001,11002,11003", "-t", "15", "-s", "1"); e != nil {
 			fmt.Printf("second server failed Error was %v.\n", e)
 			return false
 		}
 	} else {
-		if _, e := TestUtil_SpawnTestProcess("-id", "4", "-mode", "server", "-name", "ForthServer-Baddie", "-port", "10004", "-pport", "11001,11002,11003", "-t", "15", "-s", "1", "-b", "1"); e != nil {
+		if _, e := TestUtil_SpawnTestProcess("-id", "4", "-mode", "server", "-name", "fourthServer-Baddie", "-port", "10004", "-pport", "11001,11002,11003", "-t", "15", "-s", "1", "-b", "1"); e != nil {
 			fmt.Printf("second server failed Error was %v.\n", e)
 			return false
 		}
@@ -264,7 +265,7 @@ func RunTest03() bool {
 
 	// Wait 2s
 	fmt.Println()
-	fmt.Printf("@@@ TEST  03: Waiting 5s before spawning clients\n")
+	fmt.Printf("@@@ TEST  3: Waiting 5s before spawning clients\n")
 	fmt.Println()
 	time.Sleep(5 * time.Second)
 
@@ -280,7 +281,7 @@ func RunTest03() bool {
 
 	// Wait for results
 	fmt.Println()
-	fmt.Printf("@@@ TEST 03: Waiting for results\n")
+	fmt.Printf("@@@ TEST 3: Waiting for results\n")
 	fmt.Println()
 
 	// Wait for local test server
@@ -308,7 +309,7 @@ func RunTest04() bool {
 	rand.Seed(int64(time.Now().Nanosecond()))
 
 	// Log test
-	fmt.Println("--- Running test 04 ---")
+	fmt.Println("--- Running test 4 ---")
 	fmt.Println()
 
 	// Log what we're testing
@@ -328,7 +329,7 @@ func RunTest04() bool {
 	time.Sleep(2 * time.Second)
 	// Spawn server
 	if _, e := TestUtil_SpawnTestProcess("-id", "3", "-mode", "server", "-name", "ThirdServer", "-port", "10003", "-pport", "11001,11002,11003", "-t", "40"); e != nil {
-		fmt.Printf("second server failed Error was %v.\n", e)
+		fmt.Printf("third server failed Error was %v.\n", e)
 		return false
 	}
 
@@ -336,20 +337,20 @@ func RunTest04() bool {
 	serverCorrupted := rand.Intn(2)
 	// Spawn server.
 	if serverCorrupted == 0 {
-		if _, e := TestUtil_SpawnTestProcess("-id", "4", "-mode", "server", "-name", "ForthServer", "-port", "10004", "-pport", "11001,11002,11003", "-t", "40"); e != nil {
-			fmt.Printf("second server failed Error was %v.\n", e)
+		if _, e := TestUtil_SpawnTestProcess("-id", "4", "-mode", "server", "-name", "fourthServer", "-port", "10004", "-pport", "11001,11002,11003", "-t", "40"); e != nil {
+			fmt.Printf("fourth server failed Error was %v.\n", e)
 			return false
 		}
 	} else {
-		if _, e := TestUtil_SpawnTestProcess("-id", "4", "-mode", "server", "-name", "ForthServer-Baddie", "-port", "10004", "-pport", "11001,11002,11003", "-t", "40", "-b", "1"); e != nil {
-			fmt.Printf("second server failed Error was %v.\n", e)
+		if _, e := TestUtil_SpawnTestProcess("-id", "4", "-mode", "server", "-name", "fourthServer-Baddie", "-port", "10004", "-pport", "11001,11002,11003", "-t", "40", "-b", "1"); e != nil {
+			fmt.Printf("fourth server failed Error was %v.\n", e)
 			return false
 		}
 	}
 
 	// Wait 2s
 	fmt.Println()
-	fmt.Printf("@@@ TEST  04: Waiting 5s before spawning clients\n")
+	fmt.Printf("@@@ TEST  4: Waiting 5s before spawning clients\n")
 	fmt.Println()
 	time.Sleep(5 * time.Second)
 
@@ -372,13 +373,99 @@ func RunTest04() bool {
 
 	// Wait for results
 	fmt.Println()
-	fmt.Printf("@@@ TEST 04: Waiting for results\n")
+	fmt.Printf("@@@ TEST 4: Waiting for results\n")
 	fmt.Println()
 
 	// Wait for local test server
 	res := localTestServer.WaitForResults()
 
 	PrintResult(4, res)
+
+	// Wait 1s before passing/failing
+	time.Sleep(1 * time.Second)
+
+	// Halt server
+	localTestServer.Halt()
+
+	// Do asserts
+	if serverCorrupted == 1 && !res.Error {
+		fmt.Printf("\033[32mError was Encountered, but corrected\033[0m\n")
+	}
+	return res.No == clients-yesVoters && res.Yes == yesVoters && !res.Error
+
+}
+
+func RunTest05() bool {
+	// Init rand
+	rand.Seed(int64(time.Now().Nanosecond()))
+
+	// Log test
+	fmt.Println("--- Running test 5 ---")
+	fmt.Println()
+
+	// Log what we're testing
+	fmt.Println("Starting test-server")
+	fmt.Println()
+
+	// Create test server
+	localTestServer := CreateNewServer(1, "Main Server", "10001", []string{"11001"}, []string{localIP, localIP}, 40, true, 1997)
+
+	time.Sleep(2 * time.Second)
+	// Spawn server
+	if _, e := TestUtil_SpawnTestProcess("-id", "2", "-mode", "server", "-name", "otherServer", "-port", "10002", "-pport", "11001,11002,11003", "-t", "40"); e != nil {
+		fmt.Printf("second server failed Error was %v.\n", e)
+		return false
+	}
+
+	time.Sleep(2 * time.Second)
+	// Spawn server
+	if _, e := TestUtil_SpawnTestProcess("-id", "3", "-mode", "server", "-name", "ThirdServer", "-port", "10003", "-pport", "11001,11002,11003", "-t", "40"); e != nil {
+		fmt.Printf("third server failed Error was %v.\n", e)
+		return false
+	}
+
+	time.Sleep(2 * time.Second)
+	serverCorrupted := 1
+	// Spawn server.
+
+	serverRandomCorruptionMode := 3
+	if _, e := TestUtil_SpawnTestProcess("-id", "4", "-mode", "server", "-name", "fourthServer-Baddie", "-port", "10004", "-pport", "11001,11002,11003", "-t", "40", "-b", "1", "-bb", fmt.Sprintf("%v", serverRandomCorruptionMode)); e != nil {
+		fmt.Printf("fourth server failed Error was %v.\n", e)
+		return false
+	}
+
+	// Wait 2s
+	fmt.Println()
+	fmt.Printf("@@@ TEST  5: Waiting 5s before spawning clients\n")
+	fmt.Println()
+	time.Sleep(5 * time.Second)
+
+	// Amount to test
+	lowestThresshold := 101
+	clients := lowestThresshold + rand.Intn(150)
+
+	// Spawn voters
+	yesVoters := 0
+	for i := 0; i < clients; i++ {
+		vote := rand.Intn(2)
+		name := "nay" + fmt.Sprint(i-yesVoters)
+		if vote == 1 {
+			yesVoters++
+			name = "yay" + fmt.Sprint(yesVoters)
+		}
+		TestUtil_ClientVoteInstance(clientVote{id: fmt.Sprint(i), name: name, Vote: vote})
+
+	}
+
+	// Wait for results
+	fmt.Println()
+	fmt.Printf("@@@ TEST 5: Waiting for results\n")
+	fmt.Println()
+
+	// Wait for local test server
+	res := localTestServer.WaitForResults()
+
+	PrintResult(5, res)
 
 	// Wait 1s before passing/failing
 	time.Sleep(1 * time.Second)
