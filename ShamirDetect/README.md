@@ -19,20 +19,18 @@ In test 1 a simple 8-voter vote is performed with no corruption from server or c
 
 ### Test 2
 
-In test 2 a simple 8-voter vote is performed with a corrupt server, which will return a incorrect $R-value$
-This is a *Deterministic* test.
+In test 2 a simple 8-voter vote is performed with a corrupt server, which will return a incorrect $R-value$, which would result in a miscalculated Vote result.
+This is a semi-*Deterministic* test.
 
 ### Test 3
 
-In test 3  a simple 8-voter vote is performed with a corrupt server, which will return a incorrect Client list, which will result in a incorrect Client intersection
-This is a *Deterministic* test.
+In test 3  a simple 8-voter vote is performed with a corrupt server, which will return a incorrect $client list$, which would result in a incorrect Client intersection
+This is a semi-*Deterministic* test.
 
 ### Test 4
 
-In test 4, a 250-voter vote is performed, but each client is voting randomly, where each vote is $\in\{0, 1\}$, using a unique seed. 
+In test 4 a simple 8-voter vote is performed with a server, which will at random either be a Honest or Corrupt server, and the Corrupt server can furthermore differ in which way it will react, either with a $corrupt clientList$, or $R$-value  
 This is a non-*Deterministic* test.
 
 ### Test 5
-
-In test 5, a $M$-voter vote is performed, for random $M: 250 \leq M \leq 1996$, but each client is voting randomly, where each vote is  $\in\{0, 1\}, using a unique seed. 
-This is a non-*Deterministic* test.
+In test 5 the outside field case is tested ($R_1\notin Z_p$).

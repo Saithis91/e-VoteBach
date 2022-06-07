@@ -532,6 +532,16 @@ func Pop(ints []int, i int) (int, []int) {
 	return rval, append(ints[:j], ints[j+1:]...)
 }
 
+func AllInField(points []Point, p int) (bool, []int) {
+	errs := make([]int, 0)
+	for i := 0; i < len(points); i++ {
+		if points[i].Y > p || points[i].Y < 0 {
+			errs = append(errs, i)
+		}
+	}
+	return len(errs) == 0, errs
+}
+
 func (server *Server) DoTally() {
 
 	// Grab points
@@ -542,26 +552,60 @@ func (server *Server) DoTally() {
 	// Define vars
 	var yes_vote, no_vote int
 
-	// Define  array
+	// Define array and sort by X
 	points := []Point{a, b, c}
 	sort.Sort(PointXSort(points))
 
 	// Log points
 	fmt.Printf("[%s] My points for lagrange interpolation is: %v.\n", server.ID, points)
 
-	// Pick alpha points given our server ID
-	a1, tmp := Pop([]int{0, 1, 2}, int(server.ServerID)-1)
-	a2, tmp := Pop(tmp, -1)
-	a3, _ := Pop(tmp, -1)
-
-	// Define tally object
+	// Define tally object and points to sample
 	var tally Results
+	var sample_set []Point
 
-	// Define set of sample points
-	sample_set := []Point{points[a1], points[a2]}
+	// Define array of alpha values
+	alphas := make([]int, len(points))
+
+	// Verify all fall within field
+	if inside, e := AllInField(points, server.P); !inside {
+		fmt.Printf("[%s] \033[31mDetected %v point(s) outside the field!\033[0m\n", server.ID, len(e))
+		for _, v := range e {
+			fmt.Printf("[%s] \033[31mPoint %v is outside the field and is invalid!\033[0m\n", server.ID, points[v])
+		}
+
+		// Log in struct
+		server.Tally <- Results{
+			Yes:   0,
+			No:    0,
+			Error: true,
+		}
+
+		// Return
+		return
+
+	} else {
+
+		// Log all points valid
+		fmt.Printf("[%s] \033[32mAll points are in the field\033[0m\n", server.ID)
+
+		// Define temp
+		var tmp []int
+
+		// Pick alpha points given our server ID
+		alphas[0], tmp = Pop([]int{0, 1, 2}, int(server.ServerID)-1)
+		alphas[1], tmp = Pop(tmp, -1)
+		alphas[2], _ = Pop(tmp, -1)
+
+		// Define set of sample points
+		sample_set = []Point{points[alphas[0]], points[alphas[1]]}
+
+	}
 
 	// Try compute other point, given selection
+	a3 := alphas[2]
 	if Lagrange(a3+1, server.P, sample_set) != points[a3].Y {
+
+		// Log error
 		fmt.Printf("[%s] Error - Point %v is not a point on polynomium\n", server.ID, points[a3])
 
 		// Log in struct
